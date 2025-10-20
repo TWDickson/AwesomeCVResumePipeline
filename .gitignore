@@ -1,17 +1,17 @@
 # General Repo Rules
 # Ignore all cv/ subdirectories except _template
-RawContent/*
-!RawContent/_template/
-!RawContent/_template/**
-!RawContent/.gitkeep
+Content/*
+!Content/_template/
+!Content/_template/**
+!Content/.gitkeep
 
 # Ignore all output/ contents except .gitkeep
 Output/*
 !Output/.gitkeep
 
 # Ignore the nested private repo
-RawContent/.git
-RawContent/.gitignore
+Content/.git
+Content/.gitignore
 Output/.git
 Output/.gitignore
 
