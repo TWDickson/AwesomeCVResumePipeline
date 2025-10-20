@@ -1,4 +1,3 @@
-[submodule "awesome-cv"]
-    path = awesomecv
-    url = https://github.com/TWName/Awesome-CV.git
-
+[submodule "AwesomeCV"]
+	path = AwesomeCV
+	url = https://github.com/TWName/Awesome-CV
