@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"conventionalCommits.scopes": [
+			"Config",
+			"Content",
+			"Output",
+			"Git",
+			"LaTeX"
+		]
+	}
+}
