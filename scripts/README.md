@@ -1,0 +1,145 @@
+# CV Pipeline Scripts
+
+This directory contains Python scripts for managing CV versions and building resumes/cover letters.
+
+## Overview
+
+All scripts are written in **Python 3.7+** for true cross-platform compatibility. They dynamically scan the `_content/` directory to find available CV versions and provide tools to switch between them.
+
+Each version can have its own:
+
+- `tagline.tex` - Custom tagline
+- `experience.tex` - Customized experience section
+- `skills.tex` - Tailored skills
+- `summary.tex` - Version-specific summary
+- `cover_letter.tex` - Custom cover letter
+
+## Requirements
+
+- Python 3.7 or higher
+- No external dependencies (uses standard library only)
+
+## Scripts
+
+### Core Scripts
+
+1. **`set_version.py`** - Set or list CV versions
+   - Scans `_content/` directory
+   - Updates `cv-version.tex` with selected version
+   - Shows version status: [Complete], [Resume Ready], or [Partial]
+
+2. **`generate_tasks.py`** - Generate VS Code tasks.json
+   - Creates tasks with dynamic version picker
+   - Auto-updates when new versions are added
+
+3. **`copy_and_convert.py`** - LaTeX post-build processor
+   - Copies compiled PDF to `_output/<version>/` directory
+   - Dynamically names files using your name from `cv-personal-details.tex`
+   - Generates markdown versions automatically
+   - Called by LaTeX during compilation (via `\ShellEscape`)
+
+### Utility Scripts
+
+4. **`cv_parser.py`** - Parse CV content to JSON library
+5. **`resume_to_markdown.py`** - Convert LaTeX resume to Markdown
+6. **`cover_letter_to_markdown.py`** - Convert LaTeX cover letter to Markdown
+
+## Usage
+
+### Set CV Version
+
+```bash
+# List available versions with status indicators
+python scripts/set_version.py --list
+python scripts/set_version.py -l
+
+# Set a specific version
+python scripts/set_version.py test_version
+python scripts/set_version.py generic
+```
+
+### Regenerate VS Code Tasks
+
+```bash
+# Updates .vscode/tasks.json with current versions
+python scripts/generate_tasks.py
+```
+
+### Manual PDF Copy (if needed)
+
+```bash
+# Copy resume PDF and generate markdown
+python scripts/copy_and_convert.py resume cv-resume test_version
+
+# Copy cover letter PDF and generate markdown
+python scripts/copy_and_convert.py coverletter cv-coverletter test_version
+```
+
+*Note: LaTeX automatically calls `copy_and_convert.py` during compilation, so manual execution is rarely needed.*
+
+## VS Code Integration
+
+The scripts automatically integrate with VS Code through tasks. After running `generate_tasks.py`, you can:
+
+1. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
+2. Type "Tasks: Run Task"
+3. Select from:
+   - **Set CV Version** - Choose from a dropdown of available versions
+   - **List CV Versions** - Display all versions with completion status
+   - **Update Tasks** - Refresh the version list after adding new versions
+
+## Version Status Indicators
+
+When listing versions, you'll see status indicators:
+
+- **[Complete]** (Green) - Has tagline, experience, AND cover letter
+- **[Resume Ready]** (Cyan) - Has tagline and experience (no cover letter)
+- **[Partial]** (Yellow) - Has some but not all required files
+
+## How It Works
+
+### LaTeX Compilation Flow
+
+1. You compile `cv-resume.tex` or `cv-coverletter.tex`
+2. LaTeX reads the version from `cv-version.tex`
+3. LaTeX pulls content from `_content/<version>/` (or falls back to `default`)
+4. After PDF generation, LaTeX calls `copy_and_convert.py` via `\ShellEscape`
+5. The script:
+   - Reads your name from `cv-personal-details.tex`
+   - Copies PDF to `_output/<version>/` with proper naming
+   - Generates markdown version automatically
+
+### Dynamic Naming
+
+PDFs are automatically named based on your personal details:
+
+- Resume: `<Your Name> Resume.pdf`
+- Cover Letter: `<Your Name> Cover Letter.pdf`
+
+No hardcoded names - if you update `\name{First}{Last}` in `cv-personal-details.tex`, all outputs will use the new name.
+
+## Creating New Versions
+
+1. Create a new folder in `_content/` with your version name (e.g., `_content/my_company/`)
+2. Copy files from `_content/_template/` as a starting point
+3. Customize the files for your specific use case
+4. Run `generate-tasks` to refresh the version list
+5. Use `set-version` to switch to your new version
+
+## File Structure
+
+```text
+scripts/
+├── README.md                  # This file
+├── set-version.ps1           # Windows version management
+├── set-version.sh            # Mac/Linux version management
+├── generate-tasks.ps1        # Windows tasks generator
+└── generate-tasks.sh         # Mac/Linux tasks generator
+```
+
+## Notes
+
+- The `_template` directory is always excluded from the version list
+- Version names must match their folder names exactly
+- The scripts update `cv-version.tex` in the pipeline root
+- VS Code tasks are stored in `.vscode/tasks.json`

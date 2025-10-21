@@ -1,0 +1,27 @@
+# Python Requirements for CV Pipeline Scripts
+# 
+# The scripts in this project use only Python standard library modules.
+# No external dependencies are required.
+# 
+# Minimum Python version: 3.7
+# Recommended Python version: 3.9+
+#
+# Scripts included:
+# - scripts/cv_parser.py - Extracts structured data from LaTeX CV files
+# - scripts/resume_to_markdown.py - Converts LaTeX resume to Markdown
+# - scripts/cover_letter_to_markdown.py - Converts LaTeX cover letters to Markdown
+#
+# To verify Python version:
+#   python --version
+#
+# Standard library modules used:
+# - re (regular expressions)
+# - sys (system-specific parameters)
+# - pathlib (object-oriented filesystem paths)
+# - datetime (date and time handling)
+# - json (JSON encoding/decoding)
+# - hashlib (secure hashes and message digests)
+# - typing (type hints support)
+# - collections (specialized container datatypes)
+#
+# No packages need to be installed via pip for these scripts.
