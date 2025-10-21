@@ -1,0 +1,61 @@
+%!TEX encoding = UTF-8 Unicode
+% VS Code Option to Use VS Code Latex Workshop Recipe
+%!LW recipe=Xelatex_Shell_Escape
+% Awesome CV LaTeX Template for CV/Resume
+
+%-------------------------------------------------------------------------------
+% DOCUMENT CLASS
+%-------------------------------------------------------------------------------
+% A4 paper size by default, use 'letterpaper' for US letter
+\documentclass[11pt, letterpaper]{resume-pipeline}
+
+%-------------------------------------------------------------------------------
+% IMPORT CONFIGURATIONS
+%-------------------------------------------------------------------------------
+\input{cv-version.tex}             % Version configuration
+\input{cv-config.tex}              % Shared styling configuration
+\input{cv-personal-details.tex}    % Personal information
+
+%-------------------------------------------------------------------------------
+% BUILD AUTOMATION
+%-------------------------------------------------------------------------------
+\AddToHook{enddocument/end}{
+  \saferesumecopy{\jobname}{Upload Copies/\OutputVersion/}
+}
+
+%-------------------------------------------------------------------------------
+%-------------------------------------------------------------------------------
+\begin{document}
+
+%-------------------------------------------------------------------------------
+% HEADER & CONTENT
+%-------------------------------------------------------------------------------
+% Load job-specific tagline, fallback to default
+\IfFileExists{_content/\OutputVersion/tagline.tex}{
+  \input{_content/\OutputVersion/tagline.tex}
+}{
+  \input{_content/default/tagline.tex}
+}
+
+% Print the header with above personal information
+% Give optional argument to change alignment(C: center, L: left, R: right)
+\makecvheader%
+
+% Call the command with the list of sections
+\loadSections{summary, skills, experience}%
+
+%-------------------------------------------------------------------------------
+% FOOTER (Optional)
+%-------------------------------------------------------------------------------
+% Print the footer with 3 arguments(<left>, <center>, <right>)
+% Leave any of these blank if they are not needed
+% Controlled by \setbool{showResumeFooter}{true/false} in config.tex
+\ifbool{showResumeFooter}{%
+  \makecvfooter
+    {\today}
+    {\displayname~~~·~~~Résumé}
+    {\thepage}
+}{}
+
+%-------------------------------------------------------------------------------
+\end{document}

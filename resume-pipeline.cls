@@ -46,7 +46,7 @@
 
 
 %-------------------------------------------------------------------------------
-%                Custom Mobile Commands
+%                Custom Commands
 %-------------------------------------------------------------------------------
 
 % New command: \mobilelabel - Display custom label instead of number
@@ -56,6 +56,13 @@
 	\def\@mobile{#1}%
 	\def\@mobilelabel{#2}%
 	\def\@usemobilelabel{true}%
+}
+
+% New command: \displayname - Display full name from \firstname and \lastname
+% Usage: \displayname
+% This creates a combined name variable for use in footers, cover letters, etc.
+\newcommand*{\displayname}{%
+	\@firstname~\@lastname%
 }
 
 %-------------------------------------------------------------------------------
@@ -173,10 +180,10 @@
 \ExplSyntaxOn%
 \cs_new_protected:Nn \resume_load_sections:n {
 	\clist_map_inline:nn {#1} {
-		\IfFileExists{Content/\OutputVersion/##1.tex}{
-			\input{Content/\OutputVersion/##1.tex}
+		\IfFileExists{_content/\OutputVersion/##1.tex}{
+			\input{_content/\OutputVersion/##1.tex}
 		}{
-			\input{Content/default/##1.tex}
+			\input{_content/default/##1.tex}
 		}
 	}
 }
@@ -213,10 +220,10 @@
 
 % Main load command for cover letters
 \newcommand{\loadCoverLetter}{%
-	\IfFileExists{Content/\OutputVersion/cover_letter.tex}{
-		\input{Content/\OutputVersion/cover_letter.tex}
+	\IfFileExists{_content/\OutputVersion/cover_letter.tex}{
+		\input{_content/\OutputVersion/cover_letter.tex}
 	}{
-		\input{Content/default/cover_letter.tex}
+		\input{_content/default/cover_letter.tex}
 	}
 }
 
@@ -232,7 +239,7 @@
 	\newif\ifwindows%
 	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
 	\ifwindows%
-		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination 'Upload\space Copies\string\\\string\OutputVersion\string\\Your\space Name\space Resume.pdf' -Force"}%
+		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination '_output\string\\\string\OutputVersion\string\\Your\space Name\space Resume.pdf' -Force"}%
 	\else%
 		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE"}%
 	\fi%
@@ -240,24 +247,12 @@
 
 % Copy resume PDF and generate markdown
 \newcommand{\saferesumecopy}[2]{%
-	\newif\ifwindows%
-	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
-	\ifwindows%
-		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination 'Upload\space Copies\string\\\string\OutputVersion\string\\Your\space Name\space Resume.pdf' -Force; python latex\string_to\string_markdown.py"}%
-	\else%
-		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE" && python3 latex\string_to\string_markdown.py}%
-	\fi%
+	\ShellEscape{python scripts/copy\string_and\string_convert.py resume "\string\jobname" "\string\OutputVersion"}%
 }
 
 % Copy cover letter PDF and generate markdown
 \newcommand{\safecoverlettercopy}[2]{%
-	\newif\ifwindows%
-	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
-	\ifwindows%
-		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination 'Upload\space Copies\string\\\string\OutputVersion\string\\Your\space Name\space Cover\space Letter.pdf' -Force; python cover\string_letter\string_to\string_markdown.py"}%
-	\else%
-		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE" && python3 cover\string_letter\string_to\string_markdown.py}%
-	\fi%
+	\ShellEscape{python scripts/copy\string_and\string_convert.py coverletter "\string\jobname" "\string\OutputVersion"}%
 }
 
 %% End of file `resume-pipeline.cls'.

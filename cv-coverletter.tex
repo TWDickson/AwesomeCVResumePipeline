@@ -1,0 +1,63 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+% Awesome CV LaTeX Template for Cover Letter
+%
+% This template has been downloaded from:
+% https://github.com/posquit0/Awesome-CV
+%
+% Authors:
+% Claud D. Park <posquit0.bj@gmail.com>
+% Lars Richter <mail@ayeks.de>
+%
+% Template license:
+% CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+%
+
+
+%-------------------------------------------------------------------------------
+% DOCUMENT CLASS
+%-------------------------------------------------------------------------------
+% A4 paper size by default, use 'letterpaper' for US letter
+\documentclass[11pt, letterpaper]{resume-pipeline}
+
+%-------------------------------------------------------------------------------
+% IMPORT CONFIGURATIONS
+%-------------------------------------------------------------------------------
+\input{cv-version.tex}             % Version configuration
+\input{cv-config.tex}              % Shared styling configuration
+\input{cv-personal-details.tex}    % Personal information
+
+%-------------------------------------------------------------------------------
+% LETTER INFORMATION
+%-------------------------------------------------------------------------------
+\loadCoverLetter%
+
+%-------------------------------------------------------------------------------
+% BUILD AUTOMATION
+%-------------------------------------------------------------------------------
+\AddToHook{enddocument/end}{
+  \safecoverlettercopy{\jobname}{Upload Copies/\OutputVersion/}
+}
+
+%-------------------------------------------------------------------------------
+\begin{document}
+
+%-------------------------------------------------------------------------------
+% HEADER & FOOTER
+%-------------------------------------------------------------------------------
+\makecvheader[R]
+\makecvfooter{\today}{\displayname~~~·~~~Cover Letter}{}
+
+%-------------------------------------------------------------------------------
+% LETTER CONTENT
+%-------------------------------------------------------------------------------
+\makelettertitle%
+
+\begin{cvletter}
+\executestoredcontent%
+\end{cvletter}
+
+\makeletterclosing%
+
+%-------------------------------------------------------------------------------
+\end{document}

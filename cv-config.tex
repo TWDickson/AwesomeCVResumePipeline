@@ -1,0 +1,52 @@
+%-------------------------------------------------------------------------------
+% CONFIGURATION FILE
+% Centralized styling and layout configuration for Resume Pipeline
+%
+% This file contains all shared configuration options that apply to both
+% resume and cover letter documents. Modify here to update both files.
+%-------------------------------------------------------------------------------
+
+%-------------------------------------------------------------------------------
+% Page Layout Configuration
+%-------------------------------------------------------------------------------
+% Configure page margins with geometry
+% Note: Tighter margins than AwesomeCV defaults to fit more content
+\geometry{left=1.4cm, top=.6cm, right=1.4cm, bottom=0.6cm, footskip=.5cm}
+% AwesomeCV defaults: top=.8cm, bottom=1.8cm
+
+
+%-------------------------------------------------------------------------------
+% Color Configuration
+%-------------------------------------------------------------------------------
+% Color for highlights
+% Awesome Colors: awesome-emerald, awesome-skyblue, awesome-red, awesome-pink, awesome-orange
+%                 awesome-nephritis, awesome-concrete, awesome-darknight
+\colorlet{awesome}{awesome-pink}
+
+% Uncomment if you would like to specify your own color
+% \definecolor{awesome}{HTML}{CA63A8}
+
+% Colors for text (uncomment to customize)
+% \definecolor{darktext}{HTML}{414141}
+% \definecolor{text}{HTML}{333333}
+% \definecolor{graytext}{HTML}{5D5D5D}
+% \definecolor{lighttext}{HTML}{999999}
+% \definecolor{sectiondivider}{HTML}{5D5D5D}
+
+
+%-------------------------------------------------------------------------------
+% Style Configuration
+%-------------------------------------------------------------------------------
+% Set false if you don't want to highlight section with awesome color
+\setbool{acvSectionColorHighlight}{false}
+
+% Change the social information separator from a pipe (|) to something else
+\renewcommand{\acvHeaderSocialSep}{\quad\textbar\quad}
+
+
+%-------------------------------------------------------------------------------
+% Footer Configuration
+%-------------------------------------------------------------------------------
+% Boolean to control resume footer display
+\newbool{showResumeFooter}
+\setbool{showResumeFooter}{false}  % Set to true to enable footer
