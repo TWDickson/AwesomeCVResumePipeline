@@ -10,7 +10,8 @@
 			"Content",
 			"Output",
 			"Git",
-			"LaTeX"
+			"LaTeX",
+			"LLM"
 		]
 	}
 }
