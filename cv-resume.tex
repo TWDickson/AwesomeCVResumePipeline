@@ -30,19 +30,38 @@
 %-------------------------------------------------------------------------------
 % HEADER & CONTENT
 %-------------------------------------------------------------------------------
-% Load job-specific tagline, fallback to default
-\IfFileExists{_content/\OutputVersion/tagline.tex}{
-  \input{_content/\OutputVersion/tagline.tex}
-}{
-  \input{_content/default/tagline.tex}
-}
+% Load job-specific tagline
+\loadVersionFile{tagline}%
 
 % Print the header with above personal information
 % Give optional argument to change alignment(C: center, L: left, R: right)
 \makecvheader%
 
-% Call the command with the list of sections
-\loadSections{summary, skills, experience}%
+%-------------------------------------------------------------------------------
+% SECTIONS
+%-------------------------------------------------------------------------------
+% List the sections you want to include in your resume (order matters).
+% Comment out sections you don't need or haven't created yet.
+% Sections are loaded from: _content/<version>/<section>.tex
+%
+% Workflow:
+%   1. Copy _content/_template/ to _content/<version>/
+%   2. Fill out the sections you want to use
+%   3. Delete template files you don't need
+%   4. Comment out corresponding lines below
+%-------------------------------------------------------------------------------
+\loadSections{
+  summary,           % Professional summary paragraph
+  skills,            % Technical skills and competencies
+  experience,        % Work experience with bullet points
+% education,         % Academic background and degrees
+% certificates,      % Professional certifications
+% honors,            % Awards and recognitions
+% committees,        % Committee memberships and board positions
+% writing,           % Blog posts, articles, and publications
+% presentation,      % Conference talks and speaking engagements
+% extracurricular    % Clubs, volunteer work, and activities
+}%
 
 %-------------------------------------------------------------------------------
 % FOOTER (Optional)

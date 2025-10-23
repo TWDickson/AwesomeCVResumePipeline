@@ -176,20 +176,36 @@
 %                Custom Commands - Dynamic Section Loading
 %-------------------------------------------------------------------------------
 % Define section loading system for dynamic content management
-% This allows loading versioned content with fallback to defaults
+% Loads sections from version-specific directory with warning on missing files
 \ExplSyntaxOn%
 \cs_new_protected:Nn \resume_load_sections:n {
 	\clist_map_inline:nn {#1} {
 		\IfFileExists{_content/\OutputVersion/##1.tex}{
 			\input{_content/\OutputVersion/##1.tex}
 		}{
-			\input{_content/default/##1.tex}
+			\ClassWarning{resume-pipeline}{Section~'##1'~not~found.~Checked:^^J
+				~~~_content/\OutputVersion/##1.tex^^J
+				~~~Skipping~this~section.}
 		}
 	}
 }
 \cs_generate_variant:Nn \resume_load_sections:n { V }
 \NewDocumentCommand{\loadSections}{m}{
 	\resume_load_sections:n {#1}
+}
+
+% Load a single version-specific file with warning on missing
+\cs_new_protected:Nn \resume_load_version_file:n {
+	\IfFileExists{_content/\OutputVersion/#1.tex}{
+		\input{_content/\OutputVersion/#1.tex}
+	}{
+		\ClassWarning{resume-pipeline}{File~'#1.tex'~not~found.~Checked:^^J
+			~~~_content/\OutputVersion/#1.tex^^J
+			~~~Skipping~this~file.}
+	}
+}
+\NewDocumentCommand{\loadVersionFile}{m}{
+	\resume_load_version_file:n {#1}
 }
 \ExplSyntaxOff%
 
@@ -220,11 +236,7 @@
 
 % Main load command for cover letters
 \newcommand{\loadCoverLetter}{%
-	\IfFileExists{_content/\OutputVersion/cover_letter.tex}{
-		\input{_content/\OutputVersion/cover_letter.tex}
-	}{
-		\input{_content/default/cover_letter.tex}
-	}
+	\loadVersionFile{cover_letter}%
 }
 
 
