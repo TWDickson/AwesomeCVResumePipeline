@@ -17,22 +17,32 @@ Each version can have its own:
 ## Requirements
 
 - Python 3.7 or higher
-- No external dependencies (uses standard library only)
+- **Tectonic** - Modern TeX engine for building PDFs (recommended)
+  - macOS: `brew install tectonic`
+  - Windows: Download prebuilt binary from [GitHub Releases](https://github.com/tectonic-typesetting/tectonic/releases)
+  - Linux: See [Tectonic installation](https://tectonic-typesetting.github.io/install.html)
+- No Python dependencies (uses standard library only)
 
 ## Scripts
 
 ### Core Scripts
 
-1. **`set_version.py`** - Set or list CV versions
+1. **`build.py`** - Build resume and cover letter
+   - Cross-platform PDF builder using Tectonic
+   - Validates version content exists
+   - Clear error messages and build status
+   - No complex TeX distribution required
+
+2. **`set_version.py`** - Set or list CV versions
    - Scans `_content/` directory
    - Updates `cv-version.tex` with selected version
    - Shows version status: [Complete], [Resume Ready], or [Partial]
 
-2. **`generate_tasks.py`** - Generate VS Code tasks.json
+3. **`generate_tasks.py`** - Generate VS Code tasks.json
    - Creates tasks with dynamic version picker
    - Auto-updates when new versions are added
 
-3. **`copy_and_convert.py`** - LaTeX post-build processor
+4. **`copy_and_convert.py`** - LaTeX post-build processor
    - Copies compiled PDF to `_output/<version>/` directory
    - Dynamically names files using your name from `cv-personal-details.tex`
    - Generates markdown versions automatically
@@ -40,11 +50,42 @@ Each version can have its own:
 
 ### Utility Scripts
 
-4. **`cv_parser.py`** - Parse CV content to JSON library
-5. **`resume_to_markdown.py`** - Convert LaTeX resume to Markdown
-6. **`cover_letter_to_markdown.py`** - Convert LaTeX cover letter to Markdown
+1. **`cv_parser.py`** - Parse CV content to JSON library
+2. **`resume_to_markdown.py`** - Convert LaTeX resume to Markdown
+3. **`cover_letter_to_markdown.py`** - Convert LaTeX cover letter to Markdown
 
 ## Usage
+
+### Build Resume & Cover Letter
+
+The easiest way to build your documents is with the new Tectonic-based builder:
+
+```bash
+# Build both resume and cover letter
+python scripts/build.py
+
+# Build resume only
+python scripts/build.py --resume
+
+# Build cover letter only
+python scripts/build.py --cover-letter
+
+# Check if Tectonic is installed
+python scripts/build.py --check
+```
+
+**Benefits of using Tectonic:**
+
+- No need for full TeX Live installation (saves ~5GB)
+- Automatically downloads only required packages
+- Consistent builds across all platforms
+- Fast and deterministic
+- Better error messages
+
+**VS Code Integration:**
+
+- Press `Cmd+Shift+B` (Mac) or `Ctrl+Shift+B` (Windows/Linux) to build
+- Or use `Tasks: Run Task` → `Build Resume & Cover Letter`
 
 ### Set CV Version
 
