@@ -1,2 +1,0 @@
-# When merging into public branch, always keep the public version of personal details
-cv-personal-details.tex merge=ours
