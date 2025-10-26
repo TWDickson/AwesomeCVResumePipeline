@@ -11,7 +11,8 @@
 			"Output",
 			"Git",
 			"LaTeX",
-			"LLM"
+			"LLM",
+			"Scripts"
 		]
 	}
 }

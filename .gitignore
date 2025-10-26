@@ -16,6 +16,13 @@ _content/.gitignore
 _output/.git
 _output/.gitignore
 
+# LaTeX Package Manager - Downloaded packages for Tectonic
+texmf/
+.tectonic_package_cache.json
+
+# Build directory for temporary files
+.build_temp/
+
 # Latex Ignores, taken from https://github.com/github/gitignore/blob/main/TeX.gitignore
 ## Core latex/pdflatex auxiliary files:
 *.aux
