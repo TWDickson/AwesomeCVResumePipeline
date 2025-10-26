@@ -99,19 +99,26 @@ def update_version(version: str) -> None:
     """Update the version in cv-version.tex."""
     version_file = Path.cwd() / 'cv-version.tex'
 
-    content = f"""% -------------------------------------------------------------------------------
-% Version Configuration
-%-------------------------------------------------------------------------------
-% This file defines the output version for both resume and cover letter.
-% The version name should match a folder in the _content/ directory.
-%
-% Current version: {version}
-%-------------------------------------------------------------------------------
+    if not version_file.exists():
+        # If file doesn't exist, create with minimal content
+        content = f"\newcommand{{\OutputVersion}}{{{version}}}\n"
+        version_file.write_text(content, encoding='utf-8')
+        return
 
-\\newcommand{{\\OutputVersion}}{{{version}}}
-"""
-
-    version_file.write_text(content, encoding='utf-8')
+    # Read all lines and replace only the \newcommand line
+    lines = version_file.read_text(encoding='utf-8').splitlines()
+    new_lines = []
+    found = False
+    for line in lines:
+        if line.strip().startswith('\\newcommand{\\OutputVersion}'):
+            new_lines.append(f"\\newcommand{{\\OutputVersion}}{{{version}}}")
+            found = True
+        else:
+            new_lines.append(line)
+    if not found:
+        # If the command was not found, append it at the end
+        new_lines.append(f"\\newcommand{{\\OutputVersion}}{{{version}}}")
+    version_file.write_text('\n'.join(new_lines) + '\n', encoding='utf-8')
 
 
 # ANSI color codes for terminal output
@@ -347,20 +354,26 @@ def build_resume(version: Optional[str] = None) -> bool:
     if version is None:
         version = get_current_version()
 
-    print_header(f"Building Resume: {version}")
+    print_header(f"Building Resume & Cover Letter: {version}")
 
     try:
-        # Run build script
+        # Run build script for both resume and cover letter
         result = subprocess.run(
-            [sys.executable, str(SCRIPTS_DIR / 'build.py'), '--resume'],
+            [sys.executable, str(SCRIPTS_DIR / 'build.py')],
             capture_output=True,
             text=True
         )
 
         print(result.stdout)
 
+        # Check for cover letter section
+        content_dir = Path.cwd() / '_content' / version
+        cover_letter_path = content_dir / 'cover_letter.tex'
+        if not cover_letter_path.exists():
+            print_warning("No cover letter section found for this version. Skipping cover letter build.")
+
         if result.returncode == 0:
-            print_success(f"Resume built successfully for version: {version}")
+            print_success(f"Resume and cover letter build complete for version: {version}")
             return True
         else:
             print_error("Build failed")
