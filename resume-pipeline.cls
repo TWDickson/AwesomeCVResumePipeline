@@ -33,7 +33,7 @@
 %                Required Packages for Custom Features
 %-------------------------------------------------------------------------------
 \RequirePackage{expl3}		% For LaTeX3 syntax (section loading)
-\RequirePackage{shellesc}	% For shell escape file operations
+% \RequirePackage{shellesc}	% DEPRECATED: No longer using shell escape (post-build hooks in Python)
 \RequirePackage{xpatch}		% For surgical patching of commands
 
 
@@ -113,20 +113,11 @@
 	{\entrytitlestyle{#2} & \entrylocationstyle{#3} \\
 	 \entrypositionstyle{#1} & \entrydatestyle{#4} \\}
 	{\entrytitlestyle{#1} & \entrylocationstyle{#3} \\
-	 \entrypositionstyle{#2} & \entrydatestyle{#4}}
+	 \entrypositionstyle{#2} & \entrydatestyle{#4} \\}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cventry parameter order}}
 
-% Patch cventry: Change ifstrempty to ifempty for consistency
-\xpatchcmd{\cventry}
-	{\ifstrempty{#5}}
-	{\ifempty{#5}}
-	{}{\ClassWarning{resume-pipeline}{Failed to patch cventry ifempty}}
-
-% Patch cventry: Fix closing condition (remove extra \\)
-\xpatchcmd{\cventry}
-	{\entrypositionstyle{#1} & \entrydatestyle{#4} \\}
-	{\entrypositionstyle{#1} & \entrydatestyle{#4}}
-	{}{}  % Silent fail OK - depends on original version
+% Note: Removed patch that changed \ifstrempty to \ifempty
+% The original \ifstrempty works correctly and handles whitespace properly
 
 % Patch cvskills: Change table width calculation
 \xpatchcmd{\cvskills}
@@ -140,8 +131,8 @@
 	{\setlength{\parskip}{1pt}}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cvitems parskip}}
 
-% Patch cvitems: Change closing vspace
-\xpatchcmd{\cvitems}
+% Patch cvitems: Change closing vspace (using environment end patch)
+\xpatchcmd{\endcvitems}
 	{\vspace{1.0mm}}
 	{\vspace{-4.0mm}}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cvitems closing vspace}}
@@ -178,14 +169,14 @@
 % Define section loading system for dynamic content management
 % Loads sections from version-specific directory with warning on missing files
 \ExplSyntaxOn%
+% Load multiple sections with warning if missing (no fallback)
+% Usage: \loadSections{summary, skills, experience}
 \cs_new_protected:Nn \resume_load_sections:n {
 	\clist_map_inline:nn {#1} {
 		\IfFileExists{_content/\OutputVersion/##1.tex}{
 			\input{_content/\OutputVersion/##1.tex}
 		}{
-			\ClassWarning{resume-pipeline}{Section~'##1'~not~found.~Checked:^^J
-				~~~_content/\OutputVersion/##1.tex^^J
-				~~~Skipping~this~section.}
+			\ClassWarning{resume-pipeline}{File~'_content/\OutputVersion/##1.tex'~not~found.~Skipping.}
 		}
 	}
 }
@@ -194,18 +185,14 @@
 	\resume_load_sections:n {#1}
 }
 
-% Load a single version-specific file with warning on missing
-\cs_new_protected:Nn \resume_load_version_file:n {
+% Load a single file with warning if missing (no fallback)
+% Usage: \loadFile{tagline} loads _content/<version>/tagline.tex
+\NewDocumentCommand{\loadFile}{m}{
 	\IfFileExists{_content/\OutputVersion/#1.tex}{
 		\input{_content/\OutputVersion/#1.tex}
 	}{
-		\ClassWarning{resume-pipeline}{File~'#1.tex'~not~found.~Checked:^^J
-			~~~_content/\OutputVersion/#1.tex^^J
-			~~~Skipping~this~file.}
+		\ClassWarning{resume-pipeline}{File~'_content/\OutputVersion/#1.tex'~not~found.~Skipping.}
 	}
-}
-\NewDocumentCommand{\loadVersionFile}{m}{
-	\resume_load_version_file:n {#1}
 }
 \ExplSyntaxOff%
 
@@ -234,37 +221,46 @@
 % Command to execute stored content
 \newcommand{\executestoredcontent}{\storedcoverlettercontent}
 
-% Main load command for cover letters
+% Main load command for cover letters with warning if missing (no fallback)
+% Usage: \loadCoverLetter
 \newcommand{\loadCoverLetter}{%
-	\loadVersionFile{cover_letter}%
+	\IfFileExists{_content/\OutputVersion/cover_letter.tex}{
+		\input{_content/\OutputVersion/cover_letter.tex}
+	}{
+		\ClassWarning{resume-pipeline}{File~'_content/\OutputVersion/cover_letter.tex'~not~found.~Skipping.}
+	}
 }
 
 
 %-------------------------------------------------------------------------------
-%                Custom Commands - Build Automation
+%                Custom Commands - Build Automation (DEPRECATED)
 %-------------------------------------------------------------------------------
-% Cross-platform file copy and markdown generation commands
-% These enable automated PDF output and conversion in the build pipeline
+% NOTE: These shell-escape commands are no longer used.
+% Post-build hooks are now handled by the Python build script (scripts/build.py)
+% instead of LaTeX \write18/shell-escape because Tectonic generates PDFs after
+% \AtEndDocument hooks run, making LaTeX-based automation unreliable.
+%
+% Kept for reference but commented out to avoid requiring shell-escape flag.
 
-% Generic file copy utility
-\newcommand{\safefilecopy}[2]{%
-	\newif\ifwindows%
-	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
-	\ifwindows%
-		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination '_output\string\\\string\OutputVersion\string\\Your\space Name\space Resume.pdf' -Force"}%
-	\else%
-		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE"}%
-	\fi%
-}
-
-% Copy resume PDF and generate markdown
-\newcommand{\saferesumecopy}[2]{%
-	\ShellEscape{python scripts/copy\string_and\string_convert.py resume "\string\jobname" "\string\OutputVersion"}%
-}
-
-% Copy cover letter PDF and generate markdown
-\newcommand{\safecoverlettercopy}[2]{%
-	\ShellEscape{python scripts/copy\string_and\string_convert.py coverletter "\string\jobname" "\string\OutputVersion"}%
-}
+% % Generic file copy utility
+% \newcommand{\safefilecopy}[2]{%
+% 	\newif\ifwindows%
+% 	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
+% 	\ifwindows%
+% 		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination '_output\string\\\string\OutputVersion\string\\Taylor\space Dickson\space Resume.pdf' -Force"}%
+% 	\else%
+% 		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE"}%
+% 	\fi%
+% }
+%
+% % Copy resume PDF and generate markdown
+% \newcommand{\saferesumecopy}[2]{%
+% 	\ShellEscape{python scripts/copy\string_and\string_convert.py resume "\string\jobname" "\string\OutputVersion"}%
+% }
+%
+% % Copy cover letter PDF and generate markdown
+% \newcommand{\safecoverlettercopy}[2]{%
+% 	\ShellEscape{python scripts/copy\string_and\string_convert.py coverletter "\string\jobname" "\string\OutputVersion"}%
+% }
 
 %% End of file `resume-pipeline.cls'.

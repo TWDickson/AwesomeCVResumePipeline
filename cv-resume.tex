@@ -19,9 +19,8 @@
 %-------------------------------------------------------------------------------
 % BUILD AUTOMATION
 %-------------------------------------------------------------------------------
-\AddToHook{enddocument/end}{
-  \saferesumecopy{\jobname}{Upload Copies/\OutputVersion/}
-}
+% Note: Tectonic generates PDF after \AtEndDocument, so we can't use LaTeX hooks.
+% Post-build hooks are executed by the Python build script after PDF generation.
 
 %-------------------------------------------------------------------------------
 %-------------------------------------------------------------------------------
@@ -31,7 +30,7 @@
 % HEADER & CONTENT
 %-------------------------------------------------------------------------------
 % Load job-specific tagline
-\loadVersionFile{tagline}%
+\loadFile{tagline}
 
 % Print the header with above personal information
 % Give optional argument to change alignment(C: center, L: left, R: right)

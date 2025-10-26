@@ -35,9 +35,8 @@
 %-------------------------------------------------------------------------------
 % BUILD AUTOMATION
 %-------------------------------------------------------------------------------
-\AddToHook{enddocument/end}{
-  \safecoverlettercopy{\jobname}{Upload Copies/\OutputVersion/}
-}
+% Note: Tectonic generates PDF after \AtEndDocument, so we can't use LaTeX hooks.
+% Post-build hooks are executed by the Python build script after PDF generation.
 
 %-------------------------------------------------------------------------------
 \begin{document}
@@ -45,6 +44,9 @@
 %-------------------------------------------------------------------------------
 % HEADER & FOOTER
 %-------------------------------------------------------------------------------
+% Load job-specific tagline
+\loadFile{tagline}
+
 \makecvheader[R]
 \makecvfooter{\today}{\displayname~~~·~~~Cover Letter}{}
 
