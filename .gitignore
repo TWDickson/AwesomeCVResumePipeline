@@ -1,19 +1,20 @@
 # General Repo Rules
-# Ignore all cv/ subdirectories except _template
-Content/*
-!Content/_template/
-!Content/_template/**
-!Content/.gitkeep
+# PUBLIC BRANCH: Ignore all _content except _template (keep public repo clean)
+# PRIVATE BRANCH: Will have different .gitignore that tracks everything
+_content/*
+!_content/_template/
+!_content/_template/**
+!_content/.gitkeep
 
-# Ignore all output/ contents except .gitkeep
-Output/*
-!Output/.gitkeep
+# Ignore all _output/ contents except .gitkeep
+_output/*
+!_output/.gitkeep
 
-# Ignore the nested private repo
-Content/.git
-Content/.gitignore
-Output/.git
-Output/.gitignore
+# Ignore the nested private repo metadata if present
+_content/.git
+_content/.gitignore
+_output/.git
+_output/.gitignore
 
 # Latex Ignores, taken from https://github.com/github/gitignore/blob/main/TeX.gitignore
 ## Core latex/pdflatex auxiliary files:
