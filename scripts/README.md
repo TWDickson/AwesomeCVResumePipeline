@@ -54,6 +54,12 @@ Each version can have its own:
 2. **`resume_to_markdown.py`** - Convert LaTeX resume to Markdown
 3. **`cover_letter_to_markdown.py`** - Convert LaTeX cover letter to Markdown
 
+### Test Suite
+
+The `tests/` subdirectory contains comprehensive pytest tests for all scripts.
+
+See [tests/README.md](tests/README.md) for detailed test documentation.
+
 ## Usage
 
 ### Build Resume & Cover Letter
@@ -167,15 +173,38 @@ No hardcoded names - if you update `\name{First}{Last}` in `cv-personal-details.
 4. Run `generate-tasks` to refresh the version list
 5. Use `set-version` to switch to your new version
 
+## Testing
+
+The scripts include comprehensive pytest tests (35 tests total) to ensure reliability:
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with verbose output
+python -m pytest -v
+
+# Run specific test file
+python -m pytest scripts/tests/test_cv_parser.py -v
+```
+
+See [tests/README.md](tests/README.md) for complete test documentation.
+
 ## File Structure
 
 ```text
 scripts/
-├── README.md                  # This file
-├── set-version.ps1           # Windows version management
-├── set-version.sh            # Mac/Linux version management
-├── generate-tasks.ps1        # Windows tasks generator
-└── generate-tasks.sh         # Mac/Linux tasks generator
+├── README.md                      # This file
+├── set_version.py                 # Version management
+├── generate_tasks.py              # VS Code tasks generator
+├── copy_and_convert.py            # PDF copy and markdown generation
+├── cv_parser.py                   # CV to JSON library parser
+├── resume_to_markdown.py          # Resume LaTeX to Markdown
+├── cover_letter_to_markdown.py    # Cover letter LaTeX to Markdown
+└── tests/                         # Test suite
+    ├── README.md                  # Test documentation
+    ├── test_cv_parser.py          # Tests for cv_parser
+    └── test_resume_to_markdown.py # Tests for resume converter
 ```
 
 ## Notes

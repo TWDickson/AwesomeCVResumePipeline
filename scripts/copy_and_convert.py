@@ -78,8 +78,34 @@ def copy_pdf(
     dest_filename = f"{full_name} {doc_type_name}.pdf"
     dest_pdf = output_dir / dest_filename
 
-    # Small delay to ensure PDF is fully written
-    time.sleep(0.1)
+    # Wait for PDF to be fully written (with retry logic)
+    max_retries = 10
+    retry_delay = 0.2  # 200ms between retries
+
+    for attempt in range(max_retries):
+        if source_pdf.exists():
+            # Extra delay to ensure file is completely written and closed
+            time.sleep(0.1)
+            try:
+                # Try to open the file to verify it's not locked
+                with open(source_pdf, 'rb') as f:
+                    f.read(1)
+                break  # File is accessible, proceed
+            except (IOError, PermissionError):
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    print(f"Warning: PDF may still be locked after {max_retries} attempts")
+        else:
+            time.sleep(retry_delay)
+
+    if not source_pdf.exists():
+        error_msg = f"Error: Source PDF not found: {source_pdf}"
+        print(error_msg)
+        # Log to file for debugging LaTeX hooks
+        with open(base_dir / 'copy_debug.log', 'a') as f:
+            f.write(f"{error_msg}\n")
+        return None
 
     # Copy the file
     try:

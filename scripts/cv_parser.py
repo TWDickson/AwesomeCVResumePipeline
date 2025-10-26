@@ -17,6 +17,13 @@ class CVParser:
         self.cv_base_path = Path(cv_base_path)
         self.jobs: List[Dict[str, Any]] = []  # Will be list of job experiences
         self.skills_by_job: Dict[str, List[str]] = {}  # Skills organized by job context
+        self.education: List[Dict[str, Any]] = []  # Education entries
+        self.certificates: List[Dict[str, str]] = []  # Certificates
+        self.honors: List[Dict[str, str]] = []  # Honors and awards
+        self.committees: List[Dict[str, str]] = []  # Committee memberships
+        self.writing: List[Dict[str, Any]] = []  # Writing projects
+        self.presentations: List[Dict[str, Any]] = []  # Presentations
+        self.extracurricular: List[Dict[str, Any]] = []  # Extracurricular activities
         self.template_hashes = self._load_template_hashes()
 
     def _normalize_for_hash(self, content: str) -> str:
@@ -105,7 +112,8 @@ class CVParser:
         jobs = []
 
         # Find all \cventry positions
-        cventry_pattern = r'\\cventry\s*%?[^\n]*\n?\s*'
+        # Pattern matches \cventry followed by optional whitespace/newline
+        cventry_pattern = r'\\cventry\s*'
         matches = list(re.finditer(cventry_pattern, content))
 
         for match in matches:
@@ -171,12 +179,102 @@ class CVParser:
 
         return skills
 
+    def parse_cvhonors_tex(self, content: str) -> List[Dict[str, str]]:
+        """Parse cvhonors environment (certificates, honors, committees).
+
+        Uses \\cvhonor{name}{organization}{location}{date}
+        """
+        honors_list = []
+
+        # Match \cvhonor entries
+        pattern = r'\\cvhonor\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}'
+        matches = re.finditer(pattern, content, re.DOTALL)
+
+        for match in matches:
+            name = self._clean_text(match.group(1))
+            organization = self._clean_text(match.group(2))
+            location = self._clean_text(match.group(3))
+            date = self._clean_text(match.group(4))
+
+            # Skip template placeholders
+            if '[' in name or not name:
+                continue
+
+            honors_list.append({
+                'name': name,
+                'organization': organization,
+                'location': location,
+                'date': date
+            })
+
+        return honors_list
+
+    def parse_cventries_generic_tex(self, content: str) -> List[Dict[str, Any]]:
+        """Parse generic cventries environment (education, writing, presentations, extracurricular).
+
+        Uses \\cventry{title}{org}{location}{date}{items}
+        Same structure as experience.
+        """
+        entries = []
+
+        # Find all \cventry positions
+        # Pattern matches \cventry followed by optional whitespace/newline
+        cventry_pattern = r'\\cventry\s*'
+        matches = list(re.finditer(cventry_pattern, content))
+
+        for match in matches:
+            pos = match.end()
+
+            # Extract 5 brace-delimited arguments
+            args = []
+            for _ in range(5):
+                # Skip whitespace
+                while pos < len(content) and content[pos] in ' \t\n':
+                    pos += 1
+
+                if pos >= len(content) or content[pos] != '{':
+                    break
+
+                arg = self._extract_balanced_braces(content, pos)
+                args.append(arg.strip())
+
+                # Move past the closing brace
+                pos += len(arg) + 2  # +2 for { and }
+
+            if len(args) >= 5:
+                title, organization, location, dates, items_block = args[:5]
+
+                # Skip template placeholders
+                if '[' in title or not title:
+                    continue
+
+                # Extract bullet points
+                achievements = []
+                item_pattern = r'\\item\s+(.*?)(?=\\item|\\end|$)'
+                items = re.findall(item_pattern, items_block, re.DOTALL)
+
+                for item in items:
+                    cleaned = self._clean_text(item)
+                    if cleaned and len(cleaned) > 10 and '[' not in cleaned:
+                        achievements.append(cleaned)
+
+                entry = {
+                    "title": self._clean_text(title),
+                    "organization": self._clean_text(organization),
+                    "location": self._clean_text(location),
+                    "dates": self._clean_text(dates),
+                    "items": achievements
+                }
+
+                entries.append(entry)
+
+        return entries
+
     def parse_cv_directory(self, cv_dir: Path):
-        """Parse experience and skills from a CV directory"""
+        """Parse all sections from a CV directory"""
         # Parse experience.tex
         exp_file = cv_dir / "experience.tex"
         if exp_file.exists():
-            # Skip if file matches template hash
             file_hash = self._compute_file_hash(exp_file)
             if file_hash not in self.template_hashes:
                 content = exp_file.read_text(encoding='utf-8')
@@ -188,7 +286,6 @@ class CVParser:
         # Parse skills.tex
         skills_file = cv_dir / "skills.tex"
         if skills_file.exists():
-            # Skip if file matches template hash
             file_hash = self._compute_file_hash(skills_file)
             if file_hash not in self.template_hashes:
                 content = skills_file.read_text(encoding='utf-8')
@@ -197,6 +294,83 @@ class CVParser:
                     self.skills_by_job[cv_dir.name] = skills
             else:
                 print(f"  Skipping template file: {skills_file.relative_to(self.cv_base_path)}")
+
+        # Parse education.tex
+        edu_file = cv_dir / "education.tex"
+        if edu_file.exists():
+            file_hash = self._compute_file_hash(edu_file)
+            if file_hash not in self.template_hashes:
+                content = edu_file.read_text(encoding='utf-8')
+                education = self.parse_cventries_generic_tex(content)
+                self.education.extend(education)
+            else:
+                print(f"  Skipping template file: {edu_file.relative_to(self.cv_base_path)}")
+
+        # Parse certificates.tex
+        cert_file = cv_dir / "certificates.tex"
+        if cert_file.exists():
+            file_hash = self._compute_file_hash(cert_file)
+            if file_hash not in self.template_hashes:
+                content = cert_file.read_text(encoding='utf-8')
+                certificates = self.parse_cvhonors_tex(content)
+                self.certificates.extend(certificates)
+            else:
+                print(f"  Skipping template file: {cert_file.relative_to(self.cv_base_path)}")
+
+        # Parse honors.tex
+        honors_file = cv_dir / "honors.tex"
+        if honors_file.exists():
+            file_hash = self._compute_file_hash(honors_file)
+            if file_hash not in self.template_hashes:
+                content = honors_file.read_text(encoding='utf-8')
+                honors = self.parse_cvhonors_tex(content)
+                self.honors.extend(honors)
+            else:
+                print(f"  Skipping template file: {honors_file.relative_to(self.cv_base_path)}")
+
+        # Parse committees.tex
+        committees_file = cv_dir / "committees.tex"
+        if committees_file.exists():
+            file_hash = self._compute_file_hash(committees_file)
+            if file_hash not in self.template_hashes:
+                content = committees_file.read_text(encoding='utf-8')
+                committees = self.parse_cvhonors_tex(content)
+                self.committees.extend(committees)
+            else:
+                print(f"  Skipping template file: {committees_file.relative_to(self.cv_base_path)}")
+
+        # Parse writing.tex
+        writing_file = cv_dir / "writing.tex"
+        if writing_file.exists():
+            file_hash = self._compute_file_hash(writing_file)
+            if file_hash not in self.template_hashes:
+                content = writing_file.read_text(encoding='utf-8')
+                writing = self.parse_cventries_generic_tex(content)
+                self.writing.extend(writing)
+            else:
+                print(f"  Skipping template file: {writing_file.relative_to(self.cv_base_path)}")
+
+        # Parse presentation.tex
+        pres_file = cv_dir / "presentation.tex"
+        if pres_file.exists():
+            file_hash = self._compute_file_hash(pres_file)
+            if file_hash not in self.template_hashes:
+                content = pres_file.read_text(encoding='utf-8')
+                presentations = self.parse_cventries_generic_tex(content)
+                self.presentations.extend(presentations)
+            else:
+                print(f"  Skipping template file: {pres_file.relative_to(self.cv_base_path)}")
+
+        # Parse extracurricular.tex
+        extra_file = cv_dir / "extracurricular.tex"
+        if extra_file.exists():
+            file_hash = self._compute_file_hash(extra_file)
+            if file_hash not in self.template_hashes:
+                content = extra_file.read_text(encoding='utf-8')
+                extracurricular = self.parse_cventries_generic_tex(content)
+                self.extracurricular.extend(extracurricular)
+            else:
+                print(f"  Skipping template file: {extra_file.relative_to(self.cv_base_path)}")
 
     def parse_all_cvs(self):
         """Parse all CV directories"""
@@ -249,17 +423,65 @@ class CVParser:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
 
+        exports = []
+
         # Export job history
-        with open(output_path / "experience_library.json", 'w', encoding='utf-8') as f:
-            json.dump(self.jobs, f, indent=2, ensure_ascii=False)
+        if self.jobs:
+            with open(output_path / "experience_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.jobs, f, indent=2, ensure_ascii=False)
+            exports.append(f"experience_library.json ({len(self.jobs)} jobs)")
 
         # Export skills by job context
-        with open(output_path / "skills_library.json", 'w', encoding='utf-8') as f:
-            json.dump(self.skills_by_job, f, indent=2, ensure_ascii=False)
+        if self.skills_by_job:
+            with open(output_path / "skills_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.skills_by_job, f, indent=2, ensure_ascii=False)
+            exports.append(f"skills_library.json ({len(self.skills_by_job)} job contexts)")
+
+        # Export education
+        if self.education:
+            with open(output_path / "education_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.education, f, indent=2, ensure_ascii=False)
+            exports.append(f"education_library.json ({len(self.education)} entries)")
+
+        # Export certificates
+        if self.certificates:
+            with open(output_path / "certificates_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.certificates, f, indent=2, ensure_ascii=False)
+            exports.append(f"certificates_library.json ({len(self.certificates)} certificates)")
+
+        # Export honors
+        if self.honors:
+            with open(output_path / "honors_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.honors, f, indent=2, ensure_ascii=False)
+            exports.append(f"honors_library.json ({len(self.honors)} honors)")
+
+        # Export committees
+        if self.committees:
+            with open(output_path / "committees_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.committees, f, indent=2, ensure_ascii=False)
+            exports.append(f"committees_library.json ({len(self.committees)} committees)")
+
+        # Export writing
+        if self.writing:
+            with open(output_path / "writing_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.writing, f, indent=2, ensure_ascii=False)
+            exports.append(f"writing_library.json ({len(self.writing)} writing projects)")
+
+        # Export presentations
+        if self.presentations:
+            with open(output_path / "presentations_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.presentations, f, indent=2, ensure_ascii=False)
+            exports.append(f"presentations_library.json ({len(self.presentations)} presentations)")
+
+        # Export extracurricular
+        if self.extracurricular:
+            with open(output_path / "extracurricular_library.json", 'w', encoding='utf-8') as f:
+                json.dump(self.extracurricular, f, indent=2, ensure_ascii=False)
+            exports.append(f"extracurricular_library.json ({len(self.extracurricular)} activities)")
 
         print(f"\n✓ Exported to {output_dir}/")
-        print(f"  - experience_library.json ({len(self.jobs)} jobs)")
-        print(f"  - skills_library.json ({len(self.skills_by_job)} job contexts)")
+        for export in exports:
+            print(f"  - {export}")
 
 
 def main() -> None:

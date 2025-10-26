@@ -7,12 +7,19 @@ Converts Your Name's LaTeX resume to clean Markdown format.
 import re
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Any
 
 
 def clean_latex_text(text: str) -> str:
     """Remove LaTeX commands and clean up text."""
-    # Remove comments
+    # Handle escaped special characters using placeholders BEFORE removing comments
+    # This prevents escaped % from being treated as comment markers
+    text = re.sub(r'\\&', '__AMP__', text)
+    text = re.sub(r'\\_', '__UNDERSCORE__', text)
+    text = re.sub(r'\\%', '__PERCENT__', text)
+    text = re.sub(r'\\\$', '__DOLLAR__', text)
+
+    # Now remove comments (escaped % won't be matched)
     text = re.sub(r'%.*$', '', text, flags=re.MULTILINE)
 
     # Remove common LaTeX commands but keep their content
@@ -20,21 +27,29 @@ def clean_latex_text(text: str) -> str:
     text = re.sub(r'\\textit\{([^}]+)\}', r'*\1*', text)
     text = re.sub(r'\\emph\{([^}]+)\}', r'*\1*', text)
 
-    # Remove various LaTeX spacing commands
+    # Remove various LaTeX spacing commands and replace with space
     text = re.sub(r'\\enskip|\\quad|\\qquad|~', ' ', text)
     text = re.sub(r'\\cdotp', '·', text)
 
-    # Clean up special characters
-    text = re.sub(r'\\&', '&', text)
-    text = re.sub(r'\\_', '_', text)
-    text = re.sub(r'\\%', '%', text)
-    text = re.sub(r'\\\$', '$', text)
+    # Remove nested braces that just contain spacing commands (common in taglines)
+    # This handles cases like: Data Engineer{\enskip\cdotp\enskip}
+    text = re.sub(r'\{(\s*·?\s*)\}', r'\1', text)
 
     # Remove remaining backslash commands
     text = re.sub(r'\\[a-zA-Z]+(\[[^\]]*\])?(\{[^}]*\})?', '', text)
 
-    # Clean up whitespace
+    # Remove any leftover empty braces
+    text = re.sub(r'\{\}', '', text)
+
+    # Convert placeholders back to actual characters
+    text = text.replace('__AMP__', '&')
+    text = text.replace('__UNDERSCORE__', '_')
+    text = text.replace('__PERCENT__', '%')
+    text = text.replace('__DOLLAR__', '$')
+
+    # Clean up whitespace (including multiple spaces and spaces around dots)
     text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\s*·\s*', ' · ', text)  # Normalize spacing around separators
     text = text.strip()
 
     return text
@@ -81,7 +96,8 @@ def extract_tagline(tagline_path: Path) -> str:
     with open(tagline_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    position_match = re.search(r'\\position\{([^}]+)\}', content)
+    # Use greedy match to handle nested braces (common in taglines with separators)
+    position_match = re.search(r'\\position\{(.+)\}', content, re.DOTALL)
     if position_match:
         tagline = clean_latex_text(position_match.group(1))
         # Skip placeholders
@@ -102,15 +118,20 @@ def extract_summary(summary_path: Path) -> str:
     return ""
 
 
-def extract_skills(skills_path: Path) -> str:
+def extract_skills(skills_path: Path) -> List[Dict[str, str]]:
     """Extract skills from skills.tex."""
+    if not skills_path.exists():
+        return []
+
     with open(skills_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     skills = []
 
-    # Find all \cvskill entries
-    skill_pattern = r'\\cvskill\s*\{([^}]+)\}\s*%[^\n]*\n\s*\{([^}]+)\}'
+    # Find all \cvskill entries - handle both with and without comments
+    # Pattern: \cvskill{category}{skills}
+    # Also handles multiline format with comments between braces
+    skill_pattern = r'\\cvskill\s*\{([^}]+)\}\s*(?:%[^\n]*)?\s*\{([^}]+)\}'
     matches = re.finditer(skill_pattern, content, re.MULTILINE)
 
     for match in matches:
@@ -121,61 +142,70 @@ def extract_skills(skills_path: Path) -> str:
     return skills
 
 
-def extract_experience(experience_path: Path) -> str:
+def extract_experience(experience_path: Path) -> List[Dict[str, Any]]:
     """Extract experience section from experience.tex."""
+    if not experience_path.exists():
+        return []
+
     with open(experience_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     experiences = []
 
     # Split content by \cventry
-    entries = re.split(r'\\cventry', content)[1:]  # Skip first empty split
+    entries = re.split(r'\\cventry%?\s*', content)[1:]  # Skip first empty split
 
     for entry in entries:
-        # Extract the five main groups
-        # Pattern: {title} {org} {location} {date} {items_block}
-        parts_match = re.match(
-            r'\s*\{([^}]+)\}\s*%[^\n]*\n'  # title
-            r'\s*\{([^}]+)\}\s*%[^\n]*\n'  # organization
-            r'\s*\{([^}]+)\}\s*%[^\n]*\n'  # location
-            r'\s*\{([^}]+)\}\s*%[^\n]*\n'  # dates
-            r'\s*\{(.*)\}',  # items block (greedy to capture all)
+        # Extract the first four simple groups, then manually find the fifth with nested braces
+        simple_match = re.match(
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # title
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # organization
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # location
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # dates
+            r'\s*\{',  # Opening brace of items block
             entry, re.DOTALL
         )
 
-        if not parts_match:
+        if not simple_match:
             continue
 
-        title = clean_latex_text(parts_match.group(1))
-        organization = clean_latex_text(parts_match.group(2))
-        location = clean_latex_text(parts_match.group(3))
-        dates = clean_latex_text(parts_match.group(4))
-        items_block = parts_match.group(5)
+        title = clean_latex_text(simple_match.group(1))
+        organization = clean_latex_text(simple_match.group(2))
+        location = clean_latex_text(simple_match.group(3))
+        dates = clean_latex_text(simple_match.group(4))
+
+        # Find the items block by matching braces
+        start_pos = simple_match.end()
+        brace_count = 1
+        end_pos = start_pos
+
+        for i in range(start_pos, len(entry)):
+            if entry[i] == '{':
+                brace_count += 1
+            elif entry[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_pos = i
+                    break
+
+        items_block = entry[start_pos:end_pos]
 
         # Extract bullet points - look for \item commands
         items = []
-        # Split by \item and process each
-        item_parts = re.split(r'\\item\s*', items_block)[1:]  # Skip first empty split
+        # Split by \item and process each - \item doesn't use braces, text follows directly
+        item_parts = re.split(r'\\item\s+', items_block)[1:]  # Skip first empty split
 
         for item_part in item_parts:
-            # Extract content within braces (handling nested braces)
-            if item_part.strip().startswith('{'):
-                # Find matching closing brace
-                brace_count = 0
-                end_pos = 0
-                for i, char in enumerate(item_part):
-                    if char == '{':
-                        brace_count += 1
-                    elif char == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            end_pos = i
-                            break
+            # Each item goes until the next \item or end of block
+            # Clean up and extract the text
+            item_text = item_part.strip()
+            # Remove trailing content after the item (like \end{cvitems})
+            item_text = re.split(r'\\end\{cvitems\}', item_text)[0].strip()
 
-                if end_pos > 0:
-                    item_text = clean_latex_text(item_part[1:end_pos])
-                    if item_text:
-                        items.append(item_text)
+            if item_text:
+                item_text = clean_latex_text(item_text)
+                if item_text:
+                    items.append(item_text)
 
         experiences.append({
             'title': title,
@@ -188,18 +218,204 @@ def extract_experience(experience_path: Path) -> str:
     return experiences
 
 
+def extract_cvhonors(file_path: Path) -> List[Dict[str, str]]:
+    """Extract honors/certificates/committees from cvhonors environment.
+
+    These use \\cvhonor{name}{organization}{location}{date}
+    """
+    if not file_path.exists():
+        return []
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    honors = []
+
+    # Check for subsections (used in honors.tex)
+    subsection_pattern = r'\\cvsubsection\{([^}]+)\}'
+    subsection_matches = list(re.finditer(subsection_pattern, content))
+
+    # Split content by subsections if they exist
+    if subsection_matches:
+        # Process each subsection
+        for i, subsection_match in enumerate(subsection_matches):
+            subsection_name = clean_latex_text(subsection_match.group(1))
+
+            # Get content from this subsection to the next one (or end)
+            start_pos = subsection_match.end()
+            end_pos = subsection_matches[i + 1].start() if i + 1 < len(subsection_matches) else len(content)
+            section_content = content[start_pos:end_pos]
+
+            # Find cvhonor entries in this subsection
+            honor_pattern = r'\\cvhonor\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}'
+            for match in re.finditer(honor_pattern, section_content):
+                name = clean_latex_text(match.group(1))
+                organization = clean_latex_text(match.group(2))
+                location = clean_latex_text(match.group(3))
+                date = clean_latex_text(match.group(4))
+
+                # Skip template placeholders
+                if '[' in name or not name:
+                    continue
+
+                honors.append({
+                    'subsection': subsection_name,
+                    'name': name,
+                    'organization': organization,
+                    'location': location,
+                    'date': date
+                })
+    else:
+        # No subsections, just find all cvhonor entries
+        honor_pattern = r'\\cvhonor\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}\s*\{([^}]*)\}'
+        for match in re.finditer(honor_pattern, content):
+            name = clean_latex_text(match.group(1))
+            organization = clean_latex_text(match.group(2))
+            location = clean_latex_text(match.group(3))
+            date = clean_latex_text(match.group(4))
+
+            # Skip template placeholders
+            if '[' in name or not name:
+                continue
+
+            honors.append({
+                'name': name,
+                'organization': organization,
+                'location': location,
+                'date': date
+            })
+
+    return honors
+
+
+def extract_cventries_generic(file_path: Path) -> List[Dict[str, Any]]:
+    """Extract entries from cventries environment (education, writing, presentations, extracurricular).
+
+    These use \\cventry{title}{org}{location}{date}{items}
+    Same structure as experience.
+    """
+    if not file_path.exists():
+        return []
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    entries = []
+
+    # Split content by \cventry
+    entry_parts = re.split(r'\\cventry%?\s*', content)[1:]  # Skip first empty split
+
+    for entry in entry_parts:
+        # Extract the first four simple groups, then manually find the fifth with nested braces
+        simple_match = re.match(
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # title
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # organization
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # location
+            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # dates
+            r'\s*\{',  # Opening brace of items block
+            entry, re.DOTALL
+        )
+
+        if not simple_match:
+            continue
+
+        title = clean_latex_text(simple_match.group(1))
+        organization = clean_latex_text(simple_match.group(2))
+        location = clean_latex_text(simple_match.group(3))
+        dates = clean_latex_text(simple_match.group(4))
+
+        # Skip template placeholders
+        if '[' in title or not title:
+            continue
+
+        # Find the items block by matching braces
+        start_pos = simple_match.end()
+        brace_count = 1
+        end_pos = start_pos
+
+        for i in range(start_pos, len(entry)):
+            if entry[i] == '{':
+                brace_count += 1
+            elif entry[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_pos = i
+                    break
+
+        items_block = entry[start_pos:end_pos]
+
+        # Extract bullet points - look for \item commands
+        items = []
+        # Split by \item and process each - \item doesn't use braces, text follows directly
+        item_parts = re.split(r'\\item\s+', items_block)[1:]  # Skip first empty split
+
+        for item_part in item_parts:
+            # Each item goes until the next \item or end of block
+            item_text = item_part.strip()
+            # Remove trailing content after the item
+            item_text = re.split(r'\\end\{cvitems\}', item_text)[0].strip()
+
+            if item_text:
+                item_text = clean_latex_text(item_text)
+                if item_text and '[' not in item_text:  # Skip placeholders
+                    items.append(item_text)
+
+        entries.append({
+            'title': title,
+            'organization': organization,
+            'location': location,
+            'dates': dates,
+            'items': items
+        })
+
+    return entries
+
+
+def extract_section_order(cv_resume_path: Path) -> List[str]:
+    """Extract the section order from cv-resume.tex \\loadSections command."""
+    with open(cv_resume_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Find \loadSections{section1, section2, section3}
+    section_match = re.search(r'\\loadSections\{([^}]+)\}', content)
+    if section_match:
+        sections_str = section_match.group(1)
+        # Split by commas and strip whitespace
+        sections = [s.strip() for s in sections_str.split(',')]
+        return sections
+
+    # Default fallback
+    return ['summary', 'skills', 'experience']
+
+
 def generate_markdown(base_path: Path, version: str) -> str:
     """Generate markdown resume from LaTeX files."""
     base_path = Path(base_path)
-
-    # Extract all components
-    personal_info = extract_personal_info(base_path / 'cv-personal-details.tex')
-
     cv_path = base_path / '_content' / version
+
+    # Extract personal info and tagline
+    personal_info = extract_personal_info(base_path / 'cv-personal-details.tex')
     tagline = extract_tagline(cv_path / 'tagline.tex')
-    summary = extract_summary(cv_path / 'summary.tex')
-    skills = extract_skills(cv_path / 'skills.tex')
-    experiences = extract_experience(cv_path / 'experience.tex')
+
+    # Get section order from cv-resume.tex
+    section_order = extract_section_order(base_path / 'cv-resume.tex')
+
+    # Load all sections into a dictionary
+    sections_data = {}
+
+    for section_name in section_order:
+        section_file = cv_path / f'{section_name}.tex'
+
+        if section_name == 'summary':
+            sections_data['summary'] = extract_summary(section_file)
+        elif section_name == 'skills':
+            sections_data['skills'] = extract_skills(section_file)
+        elif section_name == 'experience':
+            sections_data['experience'] = extract_experience(section_file)
+        elif section_name in ['education', 'writing', 'presentation', 'extracurricular']:
+            sections_data[section_name] = extract_cventries_generic(section_file)
+        elif section_name in ['certificates', 'honors', 'committees']:
+            sections_data[section_name] = extract_cvhonors(section_file)
 
     # Build markdown
     md_lines = []
@@ -225,28 +441,79 @@ def generate_markdown(base_path: Path, version: str) -> str:
     md_lines.append(" | ".join(contact_parts))
     md_lines.append("")
 
-    # Summary
-    if summary:
-        md_lines.append("## Summary\n")
-        md_lines.append(summary)
-        md_lines.append("")
+    # Generate sections dynamically based on order
+    for section_name in section_order:
+        section_data = sections_data.get(section_name)
 
-    # Skills
-    if skills:
-        md_lines.append("## Skills\n")
-        for skill in skills:
-            md_lines.append(f"**{skill['category']}:** {skill['skills']}\n")
-        md_lines.append("")
+        if not section_data:
+            continue
 
-    # Experience
-    if experiences:
-        md_lines.append("## Experience\n")
-        for exp in experiences:
-            md_lines.append(f"### {exp['title']}")
-            md_lines.append(f"**{exp['organization']}** | {exp['location']} | {exp['dates']}\n")
-            for item in exp['items']:
-                md_lines.append(f"- {item}")
+        # Section title mapping
+        section_titles = {
+            'summary': 'Summary',
+            'skills': 'Skills',
+            'experience': 'Experience',
+            'education': 'Education',
+            'certificates': 'Certificates',
+            'honors': 'Honors & Awards',
+            'committees': 'Program Committees',
+            'writing': 'Writing',
+            'presentation': 'Presentations',
+            'extracurricular': 'Extracurricular Activity'
+        }
+
+        section_title = section_titles.get(section_name, section_name.title())
+
+        if section_name == 'summary':
+            md_lines.append(f"## {section_title}\n")
+            md_lines.append(section_data)
             md_lines.append("")
+
+        elif section_name == 'skills':
+            md_lines.append(f"## {section_title}\n")
+            for skill in section_data:
+                md_lines.append(f"**{skill['category']}:** {skill['skills']}\n")
+            md_lines.append("")
+
+        elif section_name in ['experience', 'education', 'writing', 'presentation', 'extracurricular']:
+            md_lines.append(f"## {section_title}\n")
+            for entry in section_data:
+                md_lines.append(f"### {entry['title']}")
+                md_lines.append(f"**{entry['organization']}** | {entry['location']} | {entry['dates']}\n")
+                for item in entry['items']:
+                    md_lines.append(f"- {item}")
+                md_lines.append("")
+
+        elif section_name in ['certificates', 'honors', 'committees']:
+            md_lines.append(f"## {section_title}\n")
+
+            # Check if we have subsections (like in honors)
+            has_subsections = any('subsection' in item for item in section_data)
+
+            if has_subsections:
+                # Group by subsection
+                current_subsection = None
+                for item in section_data:
+                    if item.get('subsection') != current_subsection:
+                        current_subsection = item['subsection']
+                        md_lines.append(f"### {current_subsection}\n")
+
+                    # Format the honor entry
+                    parts = [item['name'], item['organization']]
+                    if item.get('location'):
+                        parts.append(item['location'])
+                    parts.append(item['date'])
+                    md_lines.append("- " + " | ".join(parts))
+                md_lines.append("")
+            else:
+                # No subsections, just list items
+                for item in section_data:
+                    parts = [item['name'], item['organization']]
+                    if item.get('location'):
+                        parts.append(item['location'])
+                    parts.append(item['date'])
+                    md_lines.append("- " + " | ".join(parts))
+                md_lines.append("")
 
     return "\n".join(md_lines)
 
