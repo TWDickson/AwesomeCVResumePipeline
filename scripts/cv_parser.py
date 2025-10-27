@@ -6,10 +6,17 @@ Parses .tex files from cv/ subdirectories to build a searchable experience libra
 
 import re
 import json
+import sys
 import hashlib
 from pathlib import Path
 from typing import Dict, List, Any, Set, Union
 from collections import defaultdict
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from cv_utils.regex_parsing import normalize_company, normalize_dates  # noqa: E402
+from cv_utils.file_io import read_text_file_safe  # noqa: E402
 
 
 class CVParser:
@@ -70,21 +77,11 @@ class CVParser:
 
     def _normalize_company(self, company: str) -> str:
         """Normalize company names for matching"""
-        # Normalize dashes (--- to -)
-        normalized = re.sub(r'\s*-{2,}\s*', ' - ', company)
-        # Remove variations like "Ministry of the"
-        normalized = re.sub(r'\s+-\s+Ministry of the\s+', ' - ', normalized, flags=re.IGNORECASE)
-        return normalized.strip()
+        return normalize_company(company)
 
     def _normalize_dates(self, dates: str) -> str:
         """Normalize date formats for matching"""
-        # Normalize dashes
-        normalized = re.sub(r'\s*-{2,}\s*', ' - ', dates)
-        # Normalize "Present" vs actual year
-        normalized = re.sub(r'Present', '2024', normalized, flags=re.IGNORECASE)
-        # Remove all whitespace for comparison
-        normalized = re.sub(r'\s+', '', normalized)
-        return normalized
+        return normalize_dates(dates)
 
     def _extract_balanced_braces(self, text: str, start_pos: int) -> str:
         """Extract content within balanced braces starting at start_pos"""
@@ -274,14 +271,14 @@ class CVParser:
         """Parse all sections from a CV directory"""
         # Parse experience.tex
         exp_file = cv_dir / "experience.tex"
-        if exp_file.exists():
-            file_hash = self._compute_file_hash(exp_file)
-            if file_hash not in self.template_hashes:
-                content = exp_file.read_text(encoding='utf-8')
+        file_hash = self._compute_file_hash(exp_file)
+        if file_hash and file_hash not in self.template_hashes:
+            content = read_text_file_safe(exp_file)
+            if content:
                 jobs = self.parse_experience_tex(content)
                 self.jobs.extend(jobs)
-            else:
-                print(f"  Skipping template file: {exp_file.relative_to(self.cv_base_path)}")
+        elif file_hash:
+            print(f"  Skipping template file: {exp_file.relative_to(self.cv_base_path)}")
 
         # Parse skills.tex
         skills_file = cv_dir / "skills.tex"

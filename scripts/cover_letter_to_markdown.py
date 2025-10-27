@@ -7,42 +7,12 @@ Converts Your Name's LaTeX cover letter to clean Markdown format.
 import re
 import sys
 from pathlib import Path
-from datetime import date
 from typing import Dict
 
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
 
-def clean_latex_text(text: str) -> str:
-    """Remove LaTeX commands and clean up text."""
-    # Remove comments
-    text = re.sub(r'%.*$', '', text, flags=re.MULTILINE)
-
-    # Remove common LaTeX commands but keep their content
-    text = re.sub(r'\\textbf\{([^}]+)\}', r'**\1**', text)
-    text = re.sub(r'\\textit\{([^}]+)\}', r'*\1*', text)
-    text = re.sub(r'\\emph\{([^}]+)\}', r'*\1*', text)
-
-    # Remove various LaTeX spacing commands
-    text = re.sub(r'\\enskip|\\quad|\\qquad|~', ' ', text)
-    text = re.sub(r'\\cdotp', '·', text)
-
-    # Clean up special characters
-    text = re.sub(r'\\&', '&', text)
-    text = re.sub(r'\\_', '_', text)
-    text = re.sub(r'\\%', '%', text)
-    text = re.sub(r'\\\$', '$', text)
-    text = re.sub(r'\\textbackslash', r'\\', text)
-
-    # Handle today's date
-    text = re.sub(r'\\today', date.today().strftime('%B %d, %Y'), text)
-
-    # Remove remaining backslash commands
-    text = re.sub(r'\\[a-zA-Z]+(\[[^\]]*\])?(\{[^}]*\})?', '', text)
-
-    # Clean up whitespace
-    text = re.sub(r'\s+', ' ', text)
-    text = text.strip()
-
-    return text
+from cv_utils.regex_parsing import clean_latex_text  # noqa: E402
 
 
 def extract_personal_info(personal_details_path: Path) -> Dict[str, str]:
@@ -91,7 +61,7 @@ def extract_cover_letter_info(cover_letter_path: Path) -> Dict[str, str]:
     # Extract letter date
     date_match = re.search(r'\\storeletterdate\{([^}]+)\}', content)
     if date_match:
-        info['date'] = clean_latex_text(date_match.group(1))
+        info['date'] = clean_latex_text(date_match.group(1), handle_today=True)
 
     # Extract recipient
     recipient_match = re.search(r'\\storerecipient\{([^}]+)\}\{([^}]+)\}', content)

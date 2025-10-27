@@ -16,15 +16,9 @@ import argparse
 from pathlib import Path
 from typing import Tuple
 
-
-class Colors:
-    """ANSI color codes for terminal output."""
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
+from cv_utils import Colors
 
 
 def get_version_status(version_dir: Path) -> Tuple[str, str]:

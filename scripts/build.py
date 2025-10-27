@@ -22,31 +22,13 @@ import sys
 import os
 from pathlib import Path
 
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
+from cv_utils import Colors, print_status
+
 # Import the package manager (will be imported after we cd to project root)
 PACKAGE_MANAGER_AVAILABLE = False
 PackageManager = None
-
-
-class Colors:
-    """ANSI color codes for terminal output"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
-
-
-def print_status(message, status='info'):
-    """Print colored status messages"""
-    if status == 'success':
-        print(f"{Colors.GREEN}✓{Colors.RESET} {message}")
-    elif status == 'error':
-        print(f"{Colors.RED}✗{Colors.RESET} {message}")
-    elif status == 'warning':
-        print(f"{Colors.YELLOW}⚠{Colors.RESET} {message}")
-    elif status == 'info':
-        print(f"{Colors.BLUE}ℹ{Colors.RESET} {message}")
 
 
 def check_tectonic():

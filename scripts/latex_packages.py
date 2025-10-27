@@ -26,29 +26,9 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError
 from typing import Set, Dict, Optional, List
 
-
-class Colors:
-    """ANSI color codes for terminal output"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-
-
-def print_status(message, status='info'):
-    """Print colored status messages"""
-    if status == 'success':
-        print(f"{Colors.GREEN}✓{Colors.RESET} {message}")
-    elif status == 'error':
-        print(f"{Colors.RED}✗{Colors.RESET} {message}")
-    elif status == 'warning':
-        print(f"{Colors.YELLOW}⚠{Colors.RESET} {message}")
-    elif status == 'info':
-        print(f"{Colors.BLUE}ℹ{Colors.RESET} {message}")
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
+from cv_utils import Colors, print_status
 
 
 class DependencyScanner:
@@ -236,7 +216,7 @@ class CTANDownloader:
             req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urlopen(req, timeout=30) as response:
                 return response.read()
-        except URLError as e:
+        except URLError:
             return None
 
     def try_download_from_ctan(self, package_name: str) -> Optional[bytes]:
@@ -274,7 +254,7 @@ class CTANDownloader:
             try:
                 with tarfile.open(archive_path, 'r:gz') as tar:
                     tar.extractall(temp_path)
-            except:
+            except (tarfile.TarError, OSError):
                 # Try as zip
                 try:
                     with zipfile.ZipFile(archive_path, 'r') as zip_ref:
@@ -455,15 +435,15 @@ Examples:
         """
     )
     parser.add_argument('--scan', action='store_true',
-                       help='Scan and display all package dependencies')
+                        help='Scan and display all package dependencies')
     parser.add_argument('--check', action='store_true',
-                       help='Check package availability in Tectonic')
+                        help='Check package availability in Tectonic')
     parser.add_argument('--install', action='store_true',
-                       help='Install missing packages from CTAN')
+                        help='Install missing packages from CTAN')
     parser.add_argument('--clean', action='store_true',
-                       help='Remove downloaded packages')
+                        help='Remove downloaded packages')
     parser.add_argument('--project-root', type=str,
-                       help='Project root directory (default: current directory)')
+                        help='Project root directory (default: current directory)')
 
     args = parser.parse_args()
 

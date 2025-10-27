@@ -14,12 +14,10 @@ Tests cover:
 
 import sys
 from pathlib import Path
-import pytest
-import shutil
 
 # Add parent directory to path to import pipeline module
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-import pipeline
+import pipeline  # noqa: E402
 
 
 class TestVersionDiscovery:
@@ -187,7 +185,8 @@ class TestVersionManagement:
             assert version_file.exists()
 
             content = version_file.read_text()
-            assert r'\newcommand{\OutputVersion}{new_version}' in content
+            expected = '\\newcommand{\\OutputVersion}{new_version}'
+            assert expected in content
         finally:
             os.chdir(original_cwd)
 

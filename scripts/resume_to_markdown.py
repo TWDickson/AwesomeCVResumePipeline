@@ -9,56 +9,13 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any
 
-
-def clean_latex_text(text: str) -> str:
-    """Remove LaTeX commands and clean up text."""
-    # Handle escaped special characters using placeholders BEFORE removing comments
-    # This prevents escaped % from being treated as comment markers
-    text = re.sub(r'\\&', '__AMP__', text)
-    text = re.sub(r'\\_', '__UNDERSCORE__', text)
-    text = re.sub(r'\\%', '__PERCENT__', text)
-    text = re.sub(r'\\\$', '__DOLLAR__', text)
-
-    # Now remove comments (escaped % won't be matched)
-    text = re.sub(r'%.*$', '', text, flags=re.MULTILINE)
-
-    # Remove common LaTeX commands but keep their content
-    text = re.sub(r'\\textbf\{([^}]+)\}', r'**\1**', text)
-    text = re.sub(r'\\textit\{([^}]+)\}', r'*\1*', text)
-    text = re.sub(r'\\emph\{([^}]+)\}', r'*\1*', text)
-
-    # Remove various LaTeX spacing commands and replace with space
-    text = re.sub(r'\\enskip|\\quad|\\qquad|~', ' ', text)
-    text = re.sub(r'\\cdotp', '·', text)
-
-    # Remove nested braces that just contain spacing commands (common in taglines)
-    # This handles cases like: Data Engineer{\enskip\cdotp\enskip}
-    text = re.sub(r'\{(\s*·?\s*)\}', r'\1', text)
-
-    # Remove remaining backslash commands
-    text = re.sub(r'\\[a-zA-Z]+(\[[^\]]*\])?(\{[^}]*\})?', '', text)
-
-    # Remove any leftover empty braces
-    text = re.sub(r'\{\}', '', text)
-
-    # Convert placeholders back to actual characters
-    text = text.replace('__AMP__', '&')
-    text = text.replace('__UNDERSCORE__', '_')
-    text = text.replace('__PERCENT__', '%')
-    text = text.replace('__DOLLAR__', '$')
-
-    # Clean up whitespace (including multiple spaces and spaces around dots)
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\s*·\s*', ' · ', text)  # Normalize spacing around separators
-    text = text.strip()
-
-    return text
+from cv_utils.regex_parsing import clean_latex_text
+from cv_utils.file_io import read_text_file, write_text_file, read_text_file_safe, ensure_dir_exists
 
 
 def extract_personal_info(personal_details_path: Path) -> Dict[str, str]:
     """Extract personal information from cv-personal-details.tex."""
-    with open(personal_details_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(personal_details_path)
 
     info = {}
 
@@ -93,8 +50,7 @@ def extract_personal_info(personal_details_path: Path) -> Dict[str, str]:
 
 def extract_tagline(tagline_path: Path) -> str:
     """Extract position/tagline from tagline.tex."""
-    with open(tagline_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(tagline_path)
 
     # Use greedy match to handle nested braces (common in taglines with separators)
     position_match = re.search(r'\\position\{(.+)\}', content, re.DOTALL)
@@ -108,8 +64,7 @@ def extract_tagline(tagline_path: Path) -> str:
 
 def extract_summary(summary_path: Path) -> str:
     """Extract summary section from summary.tex."""
-    with open(summary_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(summary_path)
 
     # Extract content between \begin{cvparagraph} and \end{cvparagraph}
     summary_match = re.search(r'\\begin\{cvparagraph\}(.*?)\\end\{cvparagraph\}', content, re.DOTALL)
@@ -120,11 +75,9 @@ def extract_summary(summary_path: Path) -> str:
 
 def extract_skills(skills_path: Path) -> List[Dict[str, str]]:
     """Extract skills from skills.tex."""
-    if not skills_path.exists():
+    content = read_text_file_safe(skills_path)
+    if not content:
         return []
-
-    with open(skills_path, 'r', encoding='utf-8') as f:
-        content = f.read()
 
     skills = []
 
@@ -144,11 +97,9 @@ def extract_skills(skills_path: Path) -> List[Dict[str, str]]:
 
 def extract_experience(experience_path: Path) -> List[Dict[str, Any]]:
     """Extract experience section from experience.tex."""
-    if not experience_path.exists():
+    content = read_text_file_safe(experience_path)
+    if not content:
         return []
-
-    with open(experience_path, 'r', encoding='utf-8') as f:
-        content = f.read()
 
     experiences = []
 
@@ -214,7 +165,6 @@ def extract_experience(experience_path: Path) -> List[Dict[str, Any]]:
             'dates': dates,
             'items': items
         })
-
     return experiences
 
 
@@ -223,11 +173,9 @@ def extract_cvhonors(file_path: Path) -> List[Dict[str, str]]:
 
     These use \\cvhonor{name}{organization}{location}{date}
     """
-    if not file_path.exists():
+    content = read_text_file_safe(file_path)
+    if not content:
         return []
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
 
     honors = []
 
@@ -294,11 +242,9 @@ def extract_cventries_generic(file_path: Path) -> List[Dict[str, Any]]:
     These use \\cventry{title}{org}{location}{date}{items}
     Same structure as experience.
     """
-    if not file_path.exists():
+    content = read_text_file_safe(file_path)
+    if not content:
         return []
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
 
     entries = []
 
@@ -373,8 +319,7 @@ def extract_cventries_generic(file_path: Path) -> List[Dict[str, Any]]:
 
 def extract_section_order(cv_resume_path: Path) -> List[str]:
     """Extract the section order from cv-resume.tex \\loadSections command."""
-    with open(cv_resume_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(cv_resume_path)
 
     # Find \loadSections{section1, section2, section3}
     section_match = re.search(r'\\loadSections\{([^}]+)\}', content)
@@ -525,8 +470,7 @@ def main() -> None:
 
     # Read version from main tex file
     main_tex = base_path / 'cv-resume.tex'
-    with open(main_tex, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(main_tex)
 
     version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', content)
 
@@ -534,8 +478,7 @@ def main() -> None:
     if not version_match:
         cv_version_tex = base_path / 'cv-version.tex'
         if cv_version_tex.exists():
-            with open(cv_version_tex, 'r', encoding='utf-8') as f:
-                version_content = f.read()
+            version_content = read_text_file(cv_version_tex)
             version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', version_content)
 
     if not version_match:
@@ -550,12 +493,11 @@ def main() -> None:
 
     # Create output directory if it doesn't exist
     output_dir = base_path / '_output' / version
-    output_dir.mkdir(parents=True, exist_ok=True)
+    ensure_dir_exists(output_dir)
 
     # Write to file
-    output_path = output_dir / f"Your Name Resume - {version}.md"
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(markdown)
+    output_path = output_dir / f"Taylor Dickson Resume - {version}.md"
+    write_text_file(output_path, markdown)
 
     print(f"✓ Markdown resume generated: {output_path}")
 

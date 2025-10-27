@@ -35,8 +35,9 @@ import os
 SCRIPTS_DIR = Path(__file__).parent / 'scripts'
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from cv_parser import CVParser
-from generate_tasks import generate_tasks_json
+from cv_parser import CVParser  # noqa: E402
+from generate_tasks import generate_tasks_json  # noqa: E402
+from cv_utils import Colors  # noqa: E402
 
 
 # Helper functions to work with existing scripts
@@ -101,7 +102,7 @@ def update_version(version: str) -> None:
 
     if not version_file.exists():
         # If file doesn't exist, create with minimal content
-        content = f"\newcommand{{\OutputVersion}}{{{version}}}\n"
+        content = f"\\newcommand{{\\OutputVersion}}{{{version}}}\n"
         version_file.write_text(content, encoding='utf-8')
         return
 
@@ -119,20 +120,6 @@ def update_version(version: str) -> None:
         # If the command was not found, append it at the end
         new_lines.append(f"\\newcommand{{\\OutputVersion}}{{{version}}}")
     version_file.write_text('\n'.join(new_lines) + '\n', encoding='utf-8')
-
-
-# ANSI color codes for terminal output
-class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    DIM = '\033[2m'
 
 
 def clear_screen():
