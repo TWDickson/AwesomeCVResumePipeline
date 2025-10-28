@@ -19,7 +19,7 @@ class Colors:
 def print_status(message: str, status: str = 'info') -> None:
     """
     Print colored status messages.
-    
+
     Args:
         message: Message to print
         status: Status type ('success', 'error', 'warning', 'info')
