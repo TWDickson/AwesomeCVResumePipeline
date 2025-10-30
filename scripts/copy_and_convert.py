@@ -16,39 +16,23 @@ import shutil
 from pathlib import Path
 from typing import Literal
 
-
-def extract_name_from_personal_details(personal_details_path: Path) -> str:
-    """
-    Extract the full name from cv-personal-details.tex.
-
-    Returns:
-        Full name in format "FirstName LastName"
-    """
-    try:
-        content = personal_details_path.read_text(encoding='utf-8')
-
-        # Look for \name{First}{Last}
-        import re
-        name_match = re.search(r'\\name\{([^}]+)\}\{([^}]+)\}', content)
-
-        if name_match:
-            first_name = name_match.group(1).strip()
-            last_name = name_match.group(2).strip()
-            return f"{first_name} {last_name}"
-
-        # Fallback
-        return "CV"
-    except Exception as e:
-        print(f"Warning: Could not extract name from personal details: {e}")
-        return "CV"
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
+from cv_utils import (  # noqa: E402
+    ProjectPaths,
+    extract_name_from_personal_details,
+    ensure_dir_exists,
+    print_status,
+    handle_error,
+)
 
 
 def copy_pdf(
     doc_type: Literal['resume', 'coverletter'],
     jobname: str,
     version: str,
-    base_dir: Path
-) -> Path:
+    paths: ProjectPaths
+) -> bool:
     """
     Copy PDF to output directory with proper naming.
 
@@ -56,24 +40,23 @@ def copy_pdf(
         doc_type: Type of document ('resume' or 'coverletter')
         jobname: LaTeX job name (source PDF filename without .pdf)
         version: Output version name
-        base_dir: Base directory (pipeline root)
+        paths: ProjectPaths instance
 
     Returns:
-        Path to the copied PDF file
+        True if successful, False otherwise
     """
     # Get full name from personal details
-    personal_details = base_dir / "cv-personal-details.tex"
-    full_name = extract_name_from_personal_details(personal_details)
+    full_name = extract_name_from_personal_details(paths.personal_details_file)
 
     # Determine document type name
     doc_type_name = "Resume" if doc_type == 'resume' else "Cover Letter"
 
     # Source PDF (LaTeX output)
-    source_pdf = base_dir / f"{jobname}.pdf"
+    source_pdf = paths.base_dir / f"{jobname}.pdf"
 
     # Destination directory and filename
-    output_dir = base_dir / "_output" / version
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = paths.output_version_dir(version)
+    ensure_dir_exists(output_dir)
 
     dest_filename = f"{full_name} {doc_type_name}.pdf"
     dest_pdf = output_dir / dest_filename
@@ -95,56 +78,53 @@ def copy_pdf(
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
                 else:
-                    print(f"Warning: PDF may still be locked after {max_retries} attempts")
+                    print_status(f"PDF may still be locked after {max_retries} attempts", 'warning')
         else:
             time.sleep(retry_delay)
 
     if not source_pdf.exists():
-        error_msg = f"Error: Source PDF not found: {source_pdf}"
-        print(error_msg)
+        print_status(f"Source PDF not found: {source_pdf}", 'error')
         # Log to file for debugging LaTeX hooks
-        with open(base_dir / 'copy_debug.log', 'a') as f:
-            f.write(f"{error_msg}\n")
-        return None
+        with open(paths.base_dir / 'copy_debug.log', 'a') as f:
+            f.write(f"Error: Source PDF not found: {source_pdf}\n")
+        return False
 
     # Copy the file
     try:
         shutil.copy2(source_pdf, dest_pdf)
-        print(f"✓ Copied: {dest_pdf}")
+        print_status(f"Copied: {dest_pdf}", 'success')
 
         # Clean up source PDF from main directory
         try:
             source_pdf.unlink()
-            print(f"✓ Cleaned up: {source_pdf}")
+            print_status(f"Cleaned up: {source_pdf}", 'success')
         except Exception as cleanup_error:
-            print(f"Warning: Could not remove source PDF: {cleanup_error}")
+            print_status(f"Could not remove source PDF: {cleanup_error}", 'warning')
 
-        return dest_pdf
+        return True
     except FileNotFoundError:
-        print(f"Error: Source PDF not found: {source_pdf}")
-        sys.exit(1)
+        print_status(f"Source PDF not found: {source_pdf}", 'error')
+        return False
     except Exception as e:
-        print(f"Error copying PDF: {e}")
-        sys.exit(1)
+        print_status(f"Error copying PDF: {e}", 'error')
+        return False
 
 
-def run_markdown_conversion(doc_type: Literal['resume', 'coverletter'], base_dir: Path) -> None:
+def run_markdown_conversion(doc_type: Literal['resume', 'coverletter'], paths: ProjectPaths) -> None:
     """
     Run the appropriate markdown conversion script.
 
     Args:
         doc_type: Type of document ('resume' or 'coverletter')
-        base_dir: Base directory (pipeline root)
+        paths: ProjectPaths instance
     """
-    script_dir = base_dir / "scripts"
-
     if doc_type == 'resume':
-        script = script_dir / "resume_to_markdown.py"
+        script = paths.scripts_dir / "resume_to_markdown.py"
     else:
-        script = script_dir / "cover_letter_to_markdown.py"
+        script = paths.scripts_dir / "cover_letter_to_markdown.py"
 
     if not script.exists():
-        print(f"Warning: Markdown conversion script not found: {script}")
+        print_status(f"Markdown conversion script not found: {script}", 'warning')
         return
 
     try:
@@ -159,7 +139,7 @@ def run_markdown_conversion(doc_type: Literal['resume', 'coverletter'], base_dir
             if hasattr(module, 'main'):
                 module.main()
     except Exception as e:
-        print(f"Warning: Markdown conversion failed: {e}")
+        print_status(f"Markdown conversion failed: {e}", 'warning')
         # Don't exit - markdown is optional
 
 
@@ -176,20 +156,21 @@ def main() -> None:
 
     # Validate document type
     if doc_type not in ('resume', 'coverletter'):
-        print(f"Error: Document type must be 'resume' or 'coverletter', got: {doc_type}")
-        sys.exit(1)
+        handle_error(f"Document type must be 'resume' or 'coverletter', got: {doc_type}")
 
-    # Get base directory (pipeline root)
-    script_dir = Path(__file__).resolve().parent
-    base_dir = script_dir.parent
+    # Initialize project paths
+    paths = ProjectPaths()
 
     # Copy PDF with proper naming
-    copy_pdf(doc_type, jobname, version, base_dir)
+    success = copy_pdf(doc_type, jobname, version, paths)
+
+    if not success:
+        handle_error(f"Failed to copy PDF for {doc_type}")
 
     # Generate markdown version
-    run_markdown_conversion(doc_type, base_dir)
+    run_markdown_conversion(doc_type, paths)
 
-    print(f"✓ Post-build complete for {doc_type}")
+    print_status(f"Post-build complete for {doc_type}", 'success')
 
 
 if __name__ == '__main__':

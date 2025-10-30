@@ -24,7 +24,7 @@ from pathlib import Path
 
 # Add scripts directory to path for cv_utils import
 sys.path.insert(0, str(Path(__file__).parent))
-from cv_utils import Colors, print_status
+from cv_utils import Colors, print_status, ProjectPaths  # noqa: E402
 
 # Import the package manager (will be imported after we cd to project root)
 PACKAGE_MANAGER_AVAILABLE = False
@@ -57,7 +57,7 @@ def check_tectonic():
 
 def check_and_install_packages():
     """Check for missing LaTeX packages and install them automatically"""
-    if not PACKAGE_MANAGER_AVAILABLE:
+    if not PACKAGE_MANAGER_AVAILABLE or PackageManager is None:
         print_status("Package manager not available, skipping package check", 'warning')
         return True
 
@@ -81,33 +81,27 @@ def check_and_install_packages():
         return True  # Don't fail build
 
 
-def get_current_version():
+def get_current_version(paths: ProjectPaths) -> str:
     """Read the current version from cv-version.tex"""
-    version_file = Path('cv-version.tex')
-    if not version_file.exists():
+    from cv_utils import get_current_version as get_cv_version
+
+    if not paths.version_file.exists():
         print_status("cv-version.tex not found!", 'error')
-        return None
+        return "default"
 
-    content = version_file.read_text()
-    # Extract version from \newcommand{\OutputVersion}{version_name}
-    for line in content.split('\n'):
-        if '\\newcommand{\\OutputVersion}' in line:
-            # Extract content between braces
-            start = line.find('{', line.find('\\OutputVersion')) + 1
-            end = line.find('}', start)
-            version = line[start:end]
-            return version
-
-    print_status("Could not parse version from cv-version.tex", 'error')
-    return None
+    version = get_cv_version(paths.version_file)
+    if not version:
+        print_status("Could not parse version from cv-version.tex", 'error')
+        return "default"
+    return version
 
 
-def check_version_content(version):
+def check_version_content(version: str, paths: ProjectPaths) -> bool:
     """Check if version content directory exists"""
     if not version:
         return False
 
-    content_dir = Path(f'_content/{version}')
+    content_dir = paths.version_dir(version)
     if not content_dir.exists():
         print_status(f"Content directory not found: {content_dir}", 'warning')
         print(f"  Expected: _content/{version}/")
@@ -124,8 +118,11 @@ def check_version_content(version):
     return True
 
 
-def build_document(tex_file, output_name=None):
+def build_document(tex_file, output_name=None, paths=None):
     """Build a LaTeX document using Tectonic"""
+    if paths is None:
+        paths = ProjectPaths()
+
     tex_path = Path(tex_file)
     if not tex_path.exists():
         print_status(f"File not found: {tex_file}", 'error')
@@ -139,12 +136,12 @@ def build_document(tex_file, output_name=None):
     # Create a temporary build directory to keep root clean
     import shutil
 
-    build_dir = Path.cwd() / '.build_temp'
+    build_dir = paths.base_dir / '.build_temp'
     build_dir.mkdir(exist_ok=True)
 
     # Copy necessary files to build directory
-    texmf_dir = Path.cwd() / 'texmf'
-    project_root = Path.cwd()
+    texmf_dir = paths.base_dir / 'texmf'
+    project_root = paths.base_dir
 
     try:
         # Copy all required package files from texmf to build directory
@@ -192,23 +189,22 @@ def build_document(tex_file, output_name=None):
 
             # Run post-build hook (copy PDF directly from build dir to output)
             try:
-                version = get_current_version()
+                from cv_utils import extract_name_from_personal_details
+                version = get_current_version(paths)
                 doc_type = 'resume' if 'resume' in str(tex_path).lower() else 'coverletter'
 
                 # Copy PDF directly from build directory to output directory
                 # This avoids the intermediate step of moving to project root
-                output_dir = Path.cwd() / '_output' / (version or 'default')
+                output_dir = paths.output_version_dir(version)
                 output_dir.mkdir(parents=True, exist_ok=True)
 
                 # Get full name from personal details for proper filename
-                from copy_and_convert import extract_name_from_personal_details
-                personal_details = Path.cwd() / "cv-personal-details.tex"
-                full_name = extract_name_from_personal_details(personal_details)
+                full_name = extract_name_from_personal_details(paths.personal_details_file)
                 doc_type_name = "Resume" if doc_type == 'resume' else "Cover Letter"
 
                 final_pdf = output_dir / f"{full_name} {doc_type_name}.pdf"
                 shutil.copy2(pdf_path, final_pdf)
-                print_status(f"Copied to: {final_pdf.relative_to(Path.cwd())}", 'success')
+                print_status(f"Copied to: {final_pdf.relative_to(paths.base_dir)}", 'success')
 
                 # Run markdown conversion
                 md_script = 'resume_to_markdown.py' if doc_type == 'resume' else 'cover_letter_to_markdown.py'
@@ -246,7 +242,7 @@ def build_document(tex_file, output_name=None):
         if "Section" in e.stderr and "not found" in e.stderr:
             print("\n" + Colors.YELLOW + "Hint:" + Colors.RESET)
             print("  Missing section files. Make sure you've created content in:")
-            version = get_current_version()
+            version = get_current_version(paths)
             if version:
                 print(f"  _content/{version}/")
 
@@ -322,10 +318,13 @@ def main():
         print_status("Tectonic is ready to use!", 'success')
         sys.exit(0)
 
+    # Initialize project paths
+    paths = ProjectPaths()
+
     # Check version and content
-    version = get_current_version()
+    version = get_current_version(paths)
     if version:
-        check_version_content(version)
+        check_version_content(version, paths)
 
     print()
 
@@ -334,10 +333,10 @@ def main():
     build_cover = args.cover_letter or not args.resume
 
     # Check if cover letter content exists
-    version = get_current_version()
+    version = get_current_version(paths)
     cover_letter_exists = False
     if version:
-        cover_letter_path = Path(f'_content/{version}/cover_letter.tex')
+        cover_letter_path = paths.version_dir(version) / 'cover_letter.tex'
         cover_letter_exists = cover_letter_path.exists()
 
     # Skip cover letter if content doesn't exist (unless explicitly requested)
@@ -348,11 +347,11 @@ def main():
     success = True
 
     if build_resume:
-        if not build_document('cv-resume.tex', 'Resume'):
+        if not build_document('cv-resume.tex', 'Resume', paths):
             success = False
 
     if build_cover:
-        if not build_document('cv-coverletter.tex', 'Cover Letter'):
+        if not build_document('cv-coverletter.tex', 'Cover Letter', paths):
             success = False
 
     print("\n" + "=" * 50)

@@ -9,43 +9,19 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any
 
-from cv_utils.regex_parsing import clean_latex_text
-from cv_utils.file_io import read_text_file, write_text_file, read_text_file_safe, ensure_dir_exists
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
 
-
-def extract_personal_info(personal_details_path: Path) -> Dict[str, str]:
-    """Extract personal information from cv-personal-details.tex."""
-    content = read_text_file(personal_details_path)
-
-    info = {}
-
-    # Extract name
-    name_match = re.search(r'\\name\{([^}]+)\}\{([^}]+)\}', content)
-    if name_match:
-        info['name'] = f"{name_match.group(1)} {name_match.group(2)}"
-
-    # Extract contact details
-    mobile_match = re.search(r'\\mobile\{[^}]+\}\{([^}]+)\}', content)
-    if mobile_match:
-        info['mobile'] = mobile_match.group(1)
-
-    email_match = re.search(r'\\email\{([^}]+)\}', content)
-    if email_match:
-        info['email'] = email_match.group(1)
-
-    homepage_match = re.search(r'\\homepage\{([^}]+)\}', content)
-    if homepage_match:
-        info['homepage'] = homepage_match.group(1)
-
-    github_match = re.search(r'\\github\{([^}]+)\}', content)
-    if github_match:
-        info['github'] = github_match.group(1)
-
-    linkedin_match = re.search(r'\\linkedin\{([^}]+)\}', content)
-    if linkedin_match:
-        info['linkedin'] = linkedin_match.group(1)
-
-    return info
+from cv_utils import (  # noqa: E402
+    clean_latex_text,
+    read_text_file,
+    write_text_file,
+    read_text_file_safe,
+    ensure_dir_exists,
+    extract_personal_info,
+    get_current_version,
+    ProjectPaths,
+)
 
 
 def extract_tagline(tagline_path: Path) -> str:
@@ -465,34 +441,23 @@ def generate_markdown(base_path: Path, version: str) -> str:
 
 def main() -> None:
     """Main function to convert resume."""
-    # Get base path (pipeline directory) and version
-    base_path = Path(__file__).resolve().parent.parent
+    # Initialize project paths
+    paths = ProjectPaths()
 
-    # Read version from main tex file
-    main_tex = base_path / 'cv-resume.tex'
-    content = read_text_file(main_tex)
+    # Get current version
+    version = get_current_version(paths.version_file)
 
-    version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', content)
-
-    # If not found in main file, check cv-version.tex
-    if not version_match:
-        cv_version_tex = base_path / 'cv-version.tex'
-        if cv_version_tex.exists():
-            version_content = read_text_file(cv_version_tex)
-            version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', version_content)
-
-    if not version_match:
-        print("Error: Could not find OutputVersion in cv-resume.tex or cv-version.tex")
+    if not version:
+        print("Error: Could not find OutputVersion in cv-version.tex")
         sys.exit(1)
 
-    version = version_match.group(1)
     print(f"Converting version: {version}")
 
     # Generate markdown
-    markdown = generate_markdown(base_path, version)
+    markdown = generate_markdown(paths.base_dir, version)
 
     # Create output directory if it doesn't exist
-    output_dir = base_path / '_output' / version
+    output_dir = paths.output_version_dir(version)
     ensure_dir_exists(output_dir)
 
     # Write to file

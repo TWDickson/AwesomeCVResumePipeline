@@ -9,52 +9,23 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-# Add parent directory to path for imports
+# Add scripts directory to path for cv_utils import
 sys.path.insert(0, str(Path(__file__).parent))
 
-from cv_utils.regex_parsing import clean_latex_text  # noqa: E402
-
-
-def extract_personal_info(personal_details_path: Path) -> Dict[str, str]:
-    """Extract personal information from cv-personal-details.tex."""
-    with open(personal_details_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    info = {}
-
-    # Extract name
-    name_match = re.search(r'\\name\{([^}]+)\}\{([^}]+)\}', content)
-    if name_match:
-        info['name'] = f"{name_match.group(1)} {name_match.group(2)}"
-
-    # Extract contact details
-    mobile_match = re.search(r'\\mobile\{[^}]+\}\{([^}]+)\}', content)
-    if mobile_match:
-        info['mobile'] = mobile_match.group(1)
-
-    email_match = re.search(r'\\email\{([^}]+)\}', content)
-    if email_match:
-        info['email'] = email_match.group(1)
-
-    homepage_match = re.search(r'\\homepage\{([^}]+)\}', content)
-    if homepage_match:
-        info['homepage'] = homepage_match.group(1)
-
-    github_match = re.search(r'\\github\{([^}]+)\}', content)
-    if github_match:
-        info['github'] = github_match.group(1)
-
-    linkedin_match = re.search(r'\\linkedin\{([^}]+)\}', content)
-    if linkedin_match:
-        info['linkedin'] = linkedin_match.group(1)
-
-    return info
+from cv_utils import (  # noqa: E402
+    clean_latex_text,
+    read_text_file,
+    write_text_file,
+    ensure_dir_exists,
+    extract_personal_info,
+    get_current_version,
+    ProjectPaths,
+)
 
 
 def extract_cover_letter_info(cover_letter_path: Path) -> Dict[str, str]:
     """Extract cover letter content from cover_letter.tex."""
-    with open(cover_letter_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_text_file(cover_letter_path)
 
     info = {}
 
@@ -214,42 +185,26 @@ def generate_markdown(base_path: Path, version: str) -> str:
 
 def main() -> None:
     """Main function to convert cover letter."""
-    # Get base path (pipeline directory) and version
-    base_path = Path(__file__).resolve().parent.parent
+    # Get project paths
+    paths = ProjectPaths()
 
-    # Read version from main tex file
-    main_tex = base_path / 'cv-coverletter.tex'
-    with open(main_tex, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', content)
-
-    # If not found in main file, check cv-version.tex
-    if not version_match:
-        cv_version_tex = base_path / 'cv-version.tex'
-        if cv_version_tex.exists():
-            with open(cv_version_tex, 'r', encoding='utf-8') as f:
-                version_content = f.read()
-            version_match = re.search(r'\\newcommand\{\\OutputVersion\}\{([^}]+)\}', version_content)
-
-    if not version_match:
-        print("Error: Could not find OutputVersion in cv-coverletter.tex or cv-version.tex")
+    # Get current version
+    version = get_current_version(paths.version_file)
+    if not version:
+        print("Error: Could not determine current version")
         sys.exit(1)
 
-    version = version_match.group(1)
     print(f"Converting cover letter version: {version}")
 
     # Generate markdown
-    markdown = generate_markdown(base_path, version)
+    markdown = generate_markdown(paths.base_dir, version)
 
-    # Create output directory if it doesn't exist
-    output_dir = base_path / '_output' / version
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Create output directory and write markdown file
+    output_dir = paths.output_dir / version
+    ensure_dir_exists(output_dir)
 
-    # Write to file
     output_path = output_dir / f"Your Name Cover Letter - {version}.md"
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(markdown)
+    write_text_file(output_path, markdown)
 
     print(f"✓ Markdown cover letter generated: {output_path}")
 

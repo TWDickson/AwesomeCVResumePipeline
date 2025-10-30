@@ -2,7 +2,50 @@
 
 This directory contains comprehensive pytest tests for the resume generation and parsing scripts.
 
+## Test Overview
+
+**Total Tests:** 139 tests across 6 test files  
+**Coverage:** Core utilities, parsers, converters, and refactored modules  
+**Framework:** pytest with fixtures for isolated testing
+
 ## Test Files
+
+### `test_new_utils.py` ⭐ NEW
+Tests for refactored utility modules (`cv_utils/project_paths.py`, `cv_utils/version_utils.py`, `cv_utils/error_handling.py`):
+
+**42 tests covering:**
+
+- **ProjectPaths class** (12 tests):
+  - Initialization with explicit and auto-detected base directory
+  - All path properties (content_dir, template_dir, cv_library_dir, output_dir, etc.)
+  - Version-specific path methods (version_dir, output_version_dir)
+  
+- **Project root detection** (3 tests):
+  - Finding project root with marker files (cv-resume.tex, _content directory)
+  - Fallback behavior for edge cases
+  
+- **Version utilities** (13 tests):
+  - Reading current version from cv-version.tex (valid, invalid, missing)
+  - Version status detection (Complete, Resume Ready, Partial, Empty)
+  - Setting version with proper content generation
+  - Name extraction from cv-personal-details.tex with fallback handling
+  
+- **Error handling** (12 tests):
+  - CVScriptError exception class
+  - handle_error() with custom exit codes
+  - require_file() validation with custom messages
+  - require_directory() validation including file-vs-directory checks
+  - warn() function without exit
+  
+- **Integration tests** (2 tests):
+  - Combined ProjectPaths + version utilities workflow
+  - Full end-to-end workflow with all utilities
+
+### `test_cv_utils.py`
+Tests for shared utility functions:
+
+- **Console utilities**: Color codes and status printing
+- **File I/O**: Reading, writing, safe reading with defaults, existence checking, directory creation
 
 ### `test_resume.py`
 Tests for the main interactive CLI manager (`pipeline.py`):

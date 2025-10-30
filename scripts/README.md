@@ -23,6 +23,62 @@ Each version can have its own:
   - Linux: See [Tectonic installation](https://tectonic-typesetting.github.io/install.html)
 - No Python dependencies (uses standard library only)
 
+## Project Structure
+
+```
+scripts/
+├── cv_utils/                  # Shared utility modules
+│   ├── __init__.py            # Package exports
+│   ├── project_paths.py       # Centralized path management
+│   ├── version_utils.py       # Version handling utilities
+│   ├── error_handling.py      # Standardized error handling
+│   ├── console.py             # Console output utilities
+│   ├── file_io.py             # File I/O operations
+│   ├── regex_parsing.py       # LaTeX text parsing
+│   ├── section_extractors.py # Section extraction logic
+│   ├── data_conversion.py     # Data format conversions
+│   └── logging_utils.py       # Logging functionality
+├── set_version.py             # Version management
+├── generate_tasks.py          # VS Code tasks generator
+├── build.py                   # Build system
+├── copy_and_convert.py        # Post-build processor
+├── cv_parser.py               # CV to JSON converter
+├── latex_packages.py          # LaTeX package manager
+└── tests/                     # Test suite
+```
+
+## Shared Utilities (`cv_utils/`)
+
+The `cv_utils` package provides shared functionality used across all scripts:
+
+### Core Modules
+
+**`project_paths.py`** - Centralized path management
+- `ProjectPaths` class for accessing all project directories
+- Auto-detection of project root
+- Single source of truth for project structure
+
+**`version_utils.py`** - CV version management
+- `get_current_version()` - Read version from cv-version.tex
+- `get_version_status()` - Check version completeness
+- `set_version()` - Write version to cv-version.tex
+- `extract_name_from_personal_details()` - Parse user name from LaTeX
+
+**`error_handling.py`** - Standardized error handling
+- Custom exception classes for CV scripts
+- `handle_error()` - Print error and exit gracefully
+- `require_file()` / `require_directory()` - Validation helpers
+- `warn()` - Print warnings without exiting
+
+**`console.py`** - Console output formatting
+- `Colors` class for ANSI color codes
+- `print_status()` - Colored status messages (success, error, warning, info)
+
+**`file_io.py`** - File operations
+- Safe file reading/writing with UTF-8 encoding
+- Path existence checking
+- Directory creation helpers
+
 ## Scripts
 
 ### Core Scripts

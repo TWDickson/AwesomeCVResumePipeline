@@ -14,32 +14,16 @@ The version must match a folder name in the _content/ directory.
 import sys
 import argparse
 from pathlib import Path
-from typing import Tuple
 
 # Add scripts directory to path for cv_utils import
 sys.path.insert(0, str(Path(__file__).parent))
-from cv_utils import Colors
-
-
-def get_version_status(version_dir: Path) -> Tuple[str, str]:
-    """
-    Check version folder completeness and return status indicator and color.
-
-    Returns:
-        Tuple of (status_text, color_code)
-    """
-    has_tagline = (version_dir / "tagline.tex").exists()
-    has_experience = (version_dir / "experience.tex").exists()
-    has_cover_letter = (version_dir / "cover_letter.tex").exists()
-
-    if has_tagline and has_experience and has_cover_letter:
-        return " [Complete]", Colors.GREEN
-    elif has_tagline and has_experience:
-        return " [Resume Ready]", Colors.CYAN
-    elif has_tagline or has_experience or has_cover_letter:
-        return " [Partial]", Colors.YELLOW
-    else:
-        return "", Colors.RESET
+from cv_utils import (  # noqa: E402
+    Colors,
+    ProjectPaths,
+    get_version_status,
+    set_version as set_cv_version,
+    require_directory,
+)
 
 
 def list_versions(content_path: Path) -> None:
@@ -62,9 +46,9 @@ def list_versions(content_path: Path) -> None:
     print()
 
 
-def set_version(version: str, content_path: Path, version_file: Path) -> None:
+def set_version(version: str, paths: ProjectPaths) -> None:
     """Set the CV version in cv-version.tex."""
-    version_path = content_path / version
+    version_path = paths.version_dir(version)
 
     # Check if version folder exists
     if not version_path.exists():
@@ -80,37 +64,13 @@ def set_version(version: str, content_path: Path, version_file: Path) -> None:
             print(f"\n{Colors.RED}Cancelled.{Colors.RESET}")
             sys.exit(1)
 
-    # Generate cv-version.tex content
-    content = f"""%-------------------------------------------------------------------------------
-% Version Configuration
-%-------------------------------------------------------------------------------
-% This file defines the output version for both resume and cover letter.
-% The version name should match a folder in the _content/ directory.
-%
-% Usage:
-%   1. Manually edit this file and change the version name
-%   2. Use VS Code task: "Set CV Version" (Ctrl+Shift+P -> Tasks: Run Task)
-%   3. Use Python script: python scripts/set_version.py <version-name>
-%   4. List available versions: python scripts/set_version.py --list
-%
-% If a file is not found in the specified version folder, it will
-% automatically fall back to the 'default' folder.
-%-------------------------------------------------------------------------------
+    # Set version using utility function
+    set_cv_version(version, paths.version_file)
+    print(f"{Colors.GREEN}✓ CV version set to: {version}{Colors.RESET}")
 
-\\newcommand{{\\OutputVersion}}{{{version}}}
-"""
-
-    # Write to file
-    try:
-        version_file.write_text(content, encoding='utf-8')
-        print(f"{Colors.GREEN}✓ CV version set to: {version}{Colors.RESET}")
-
-        if version_path.exists():
-            status, color = get_version_status(version_path)
-            print(f"{color}  Status: {status.strip()}{Colors.RESET}")
-    except Exception as e:
-        print(f"{Colors.RED}Error writing to {version_file}: {e}{Colors.RESET}")
-        sys.exit(1)
+    if version_path.exists():
+        status, color = get_version_status(version_path)
+        print(f"{color}  Status: {status.strip()}{Colors.RESET}")
 
 
 def main() -> None:
@@ -140,20 +100,18 @@ Examples:
 
     args = parser.parse_args()
 
-    # Get paths
-    script_dir = Path(__file__).resolve().parent
-    base_dir = script_dir.parent
-    content_path = base_dir / "_content"
-    version_file = base_dir / "cv-version.tex"
+    # Initialize project paths
+    paths = ProjectPaths()
 
     # Ensure _content directory exists
-    if not content_path.exists():
-        print(f"{Colors.RED}Error: _content/ directory not found at {content_path}{Colors.RESET}")
-        sys.exit(1)
+    require_directory(
+        paths.content_dir,
+        f"_content/ directory not found at {paths.content_dir}"
+    )
 
     # List versions
     if args.list:
-        list_versions(content_path)
+        list_versions(paths.content_dir)
         sys.exit(0)
 
     # Set version
@@ -163,7 +121,7 @@ Examples:
         print(f"{Colors.YELLOW}   or: python set_version.py --list{Colors.RESET}")
         sys.exit(1)
 
-    set_version(args.version, content_path, version_file)
+    set_version(args.version, paths)
 
 
 if __name__ == '__main__':

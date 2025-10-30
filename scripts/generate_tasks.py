@@ -8,8 +8,13 @@ Usage:
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import List
+
+# Add scripts directory to path for cv_utils import
+sys.path.insert(0, str(Path(__file__).parent))
+from cv_utils import ProjectPaths, print_status, ensure_dir_exists, require_directory  # noqa: E402
 
 
 def get_available_versions(content_path: Path) -> List[str]:
@@ -103,40 +108,38 @@ def generate_tasks_json(versions: List[str]) -> dict:
 
 def main() -> None:
     """Main entry point."""
-    # Get paths
-    script_dir = Path(__file__).resolve().parent
-    base_dir = script_dir.parent
-    content_path = base_dir / "_content"
-    vscode_dir = base_dir / ".vscode"
-    tasks_file = vscode_dir / "tasks.json"
+    # Initialize project paths
+    paths = ProjectPaths()
 
     # Ensure _content directory exists
-    if not content_path.exists():
-        print(f"Error: _content/ directory not found at {content_path}")
-        return
+    require_directory(
+        paths.content_dir,
+        f"_content/ directory not found at {paths.content_dir}"
+    )
 
     # Create .vscode directory if it doesn't exist
-    vscode_dir.mkdir(exist_ok=True)
+    ensure_dir_exists(paths.vscode_dir)
 
     # Get available versions
-    versions = get_available_versions(content_path)
+    versions = get_available_versions(paths.content_dir)
 
     # Generate tasks.json (handles empty list gracefully)
     tasks_data = generate_tasks_json(versions)
 
     # Write to file
+    tasks_file = paths.vscode_dir / "tasks.json"
     try:
         with open(tasks_file, 'w', encoding='utf-8') as f:
             json.dump(tasks_data, f, indent=4, ensure_ascii=False)
 
-        print(f"✓ Generated {tasks_file}")
+        print_status(f"Generated {tasks_file}", 'success')
         if versions:
             print(f"  Found {len(versions)} version(s): {', '.join(versions)}")
         else:
             print("  No versions found - using 'default' as placeholder")
     except Exception as e:
-        print(f"Error writing tasks.json: {e}")
-        return
+        print_status(f"Error writing tasks.json: {e}", 'error')
+        sys.exit(1)
 
 
 if __name__ == '__main__':
