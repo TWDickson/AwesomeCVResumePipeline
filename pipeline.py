@@ -173,6 +173,7 @@ def create_new_version(version_name: Optional[str] = None) -> bool:
         print_error("Template directory not found at _content/_template/")
         return False
 
+
     # Get version name
     if version_name is None:
         print_info("Enter a name for the new version (e.g., 'acme_corp', 'senior_engineer')")
@@ -182,6 +183,24 @@ def create_new_version(version_name: Optional[str] = None) -> bool:
     if not version_name:
         print_error("Version name cannot be empty")
         return False
+
+    # Normalize version name
+    normalized = re.sub(r'[^a-zA-Z0-9_-]', '', version_name.replace(' ', '_').lower())
+    if version_name != normalized:
+        print_warning(f"Version name '{version_name}' is not in the recommended format.")
+        print_info(f"Suggested: {Colors.CYAN}{normalized}{Colors.ENDC}")
+        action = input(f"Use suggested name? (Y/edit/cancel): {Colors.ENDC}").strip().lower()
+        if action == 'y' or action == 'yes' or action == '':
+            version_name = normalized
+        elif action == 'edit':
+            version_name = input(f"{Colors.BOLD}Edit version name: {Colors.ENDC}").strip()
+            if not version_name:
+                print_error("Version name cannot be empty")
+                return False
+            version_name = re.sub(r'[^a-zA-Z0-9_-]', '', version_name.replace(' ', '_').lower())
+        else:
+            print_info("Cancelled")
+            return False
 
     # Validate version name
     if not version_name.replace('_', '').replace('-', '').isalnum():
@@ -211,9 +230,16 @@ def create_new_version(version_name: Optional[str] = None) -> bool:
         print_info("Cancelled")
         return False
 
-    # Copy template
+    # Copy template, skipping .gitignore
     try:
-        shutil.copytree(template_dir, new_version_dir)
+        new_version_dir.mkdir(parents=True, exist_ok=False)
+        for item in template_dir.iterdir():
+            if item.name == '.gitignore':
+                continue
+            if item.is_file():
+                shutil.copy2(item, new_version_dir / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, new_version_dir / item.name)
         print_success(f"Created new version: {version_name}")
 
         # Ask if user wants to switch to it
