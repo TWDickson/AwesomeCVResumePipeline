@@ -125,10 +125,10 @@
 	{L{\textwidth - 5cm}}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cvskills width}}
 
-% Patch cvitems: Adjust parskip from 0pt to 1pt
+% Patch cvitems: Adjust parskip from 0pt to 4pt
 \xpatchcmd{\cvitems}
 	{\setlength{\parskip}{0pt}}
-	{\setlength{\parskip}{1pt}}
+	{\setlength{\parskip}{4pt}}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cvitems parskip}}
 
 % Patch cvitems: Change closing vspace (using environment end patch)
