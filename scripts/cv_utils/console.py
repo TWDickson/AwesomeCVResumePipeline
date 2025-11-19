@@ -1,5 +1,16 @@
 """Console output utilities for CV scripts."""
 
+import sys
+
+# Configure stdout to use UTF-8 encoding on Windows to support Unicode symbols
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Python < 3.7 fallback
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+
 
 class Colors:
     """ANSI color codes for terminal output."""
