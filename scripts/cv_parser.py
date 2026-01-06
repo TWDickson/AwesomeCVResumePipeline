@@ -109,8 +109,10 @@ class CVParser:
         jobs = []
 
         # Find all \cventry positions
-        # Pattern matches \cventry followed by optional whitespace/newline
-        cventry_pattern = r'\\cventry\s*'
+        # Pattern matches \cventry followed by an optional '%' (authors sometimes use
+        # "\cventry%" to comment the macro) and optional whitespace/newline.
+        # Accept both "\cventry" and "\cventry%" styles.
+        cventry_pattern = r'\\cventry\s*%?\s*'
         matches = list(re.finditer(cventry_pattern, content))
 
         for match in matches:
@@ -215,8 +217,10 @@ class CVParser:
         entries = []
 
         # Find all \cventry positions
-        # Pattern matches \cventry followed by optional whitespace/newline
-        cventry_pattern = r'\\cventry\s*'
+        # Pattern matches \cventry followed by an optional '%' and optional whitespace/newline
+        # This mirrors the experience parser so generic entries are also detected when
+        # the macro is immediately followed by '%'.
+        cventry_pattern = r'\\cventry\s*%?\s*'
         matches = list(re.finditer(cventry_pattern, content))
 
         for match in matches:
