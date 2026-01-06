@@ -79,59 +79,72 @@ def extract_experience(experience_path: Path) -> List[Dict[str, Any]]:
 
     experiences = []
 
-    # Split content by \cventry
-    entries = re.split(r'\\cventry%?\s*', content)[1:]  # Skip first empty split
+    # Robust parsing: find all \cventry occurrences and extract five brace-delimited args
+    cventry_pattern = r'\\cventry\s*%?\s*'
+    for match in re.finditer(cventry_pattern, content):
+        pos = match.end()
 
-    for entry in entries:
-        # Extract the first four simple groups, then manually find the fifth with nested braces
-        simple_match = re.match(
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # title
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # organization
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # location
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # dates
-            r'\s*\{',  # Opening brace of items block
-            entry, re.DOTALL
-        )
+        # Extract 5 brace-delimited arguments
+        args = []
+        for _ in range(5):
+            # Skip whitespace and line comments
+            while pos < len(content) and content[pos] in ' \t\n':
+                pos += 1
 
-        if not simple_match:
+            # Skip a line comment starting with % until end of line
+            if pos < len(content) and content[pos] == '%':
+                # advance to end of line
+                while pos < len(content) and content[pos] != '\n':
+                    pos += 1
+                continue
+
+            if pos >= len(content) or content[pos] != '{':
+                break
+
+            # Extract balanced braces content
+            brace_count = 0
+            i = pos
+            extracted = ''
+            for i in range(pos, len(content)):
+                ch = content[i]
+                if ch == '{':
+                    brace_count += 1
+                    if brace_count > 1:
+                        extracted += ch
+                elif ch == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        break
+                    else:
+                        extracted += ch
+                else:
+                    if brace_count >= 1:
+                        extracted += ch
+
+            args.append(extracted.strip())
+            pos = i + 1
+
+        if len(args) < 5:
             continue
 
-        title = clean_latex_text(simple_match.group(1))
-        organization = clean_latex_text(simple_match.group(2))
-        location = clean_latex_text(simple_match.group(3))
-        dates = clean_latex_text(simple_match.group(4))
+        title, organization, location, dates, items_block = args[:5]
 
-        # Find the items block by matching braces
-        start_pos = simple_match.end()
-        brace_count = 1
-        end_pos = start_pos
+        title = clean_latex_text(title)
+        organization = clean_latex_text(organization)
+        location = clean_latex_text(location)
+        dates = clean_latex_text(dates)
 
-        for i in range(start_pos, len(entry)):
-            if entry[i] == '{':
-                brace_count += 1
-            elif entry[i] == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    end_pos = i
-                    break
-
-        items_block = entry[start_pos:end_pos]
-
-        # Extract bullet points - look for \item commands
+        # Extract bullet points
         items = []
-        # Split by \item and process each - \item doesn't use braces, text follows directly
-        item_parts = re.split(r'\\item\s+', items_block)[1:]  # Skip first empty split
-
-        for item_part in item_parts:
-            # Each item goes until the next \item or end of block
-            # Clean up and extract the text
-            item_text = item_part.strip()
-            # Remove trailing content after the item (like \end{cvitems})
-            item_text = re.split(r'\\end\{cvitems\}', item_text)[0].strip()
-
+        item_parts = re.split(r'\\item\s+', items_block)
+        for part in item_parts[1:]:
+            item_text = re.split(r'\\end\{cvitems\}', part)[0].strip()
             if item_text:
                 item_text = clean_latex_text(item_text)
                 if item_text:
+                    # Remove stray surrounding braces left from parsing
+                    if item_text.startswith('{') and item_text.endswith('}'):
+                        item_text = item_text[1:-1].strip()
                     items.append(item_text)
 
         experiences.append({
@@ -224,62 +237,65 @@ def extract_cventries_generic(file_path: Path) -> List[Dict[str, Any]]:
 
     entries = []
 
-    # Split content by \cventry
-    entry_parts = re.split(r'\\cventry%?\s*', content)[1:]  # Skip first empty split
+    # Robust parsing similar to extract_experience
+    cventry_pattern = r'\\cventry\s*%?\s*'
+    for match in re.finditer(cventry_pattern, content):
+        pos = match.end()
 
-    for entry in entry_parts:
-        # Extract the first four simple groups, then manually find the fifth with nested braces
-        simple_match = re.match(
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # title
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # organization
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # location
-            r'\s*\{([^}]+)\}\s*%?[^\n]*\n?'  # dates
-            r'\s*\{',  # Opening brace of items block
-            entry, re.DOTALL
-        )
+        args = []
+        for _ in range(5):
+            while pos < len(content) and content[pos] in ' \t\n':
+                pos += 1
+            if pos < len(content) and content[pos] == '%':
+                while pos < len(content) and content[pos] != '\n':
+                    pos += 1
+                continue
+            if pos >= len(content) or content[pos] != '{':
+                break
 
-        if not simple_match:
+            brace_count = 0
+            extracted = ''
+            for i in range(pos, len(content)):
+                ch = content[i]
+                if ch == '{':
+                    brace_count += 1
+                    if brace_count > 1:
+                        extracted += ch
+                elif ch == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        break
+                    else:
+                        extracted += ch
+                else:
+                    if brace_count >= 1:
+                        extracted += ch
+
+            args.append(extracted.strip())
+            pos = i + 1
+
+        if len(args) < 5:
             continue
 
-        title = clean_latex_text(simple_match.group(1))
-        organization = clean_latex_text(simple_match.group(2))
-        location = clean_latex_text(simple_match.group(3))
-        dates = clean_latex_text(simple_match.group(4))
+        title, organization, location, dates, items_block = args[:5]
 
-        # Skip template placeholders
+        title = clean_latex_text(title)
+        organization = clean_latex_text(organization)
+        location = clean_latex_text(location)
+        dates = clean_latex_text(dates)
+
         if '[' in title or not title:
             continue
 
-        # Find the items block by matching braces
-        start_pos = simple_match.end()
-        brace_count = 1
-        end_pos = start_pos
-
-        for i in range(start_pos, len(entry)):
-            if entry[i] == '{':
-                brace_count += 1
-            elif entry[i] == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    end_pos = i
-                    break
-
-        items_block = entry[start_pos:end_pos]
-
-        # Extract bullet points - look for \item commands
         items = []
-        # Split by \item and process each - \item doesn't use braces, text follows directly
-        item_parts = re.split(r'\\item\s+', items_block)[1:]  # Skip first empty split
-
-        for item_part in item_parts:
-            # Each item goes until the next \item or end of block
-            item_text = item_part.strip()
-            # Remove trailing content after the item
-            item_text = re.split(r'\\end\{cvitems\}', item_text)[0].strip()
-
+        item_parts = re.split(r'\\item\s+', items_block)
+        for part in item_parts[1:]:
+            item_text = re.split(r'\\end\{cvitems\}', part)[0].strip()
             if item_text:
                 item_text = clean_latex_text(item_text)
-                if item_text and '[' not in item_text:  # Skip placeholders
+                if item_text and '[' not in item_text:
+                    if item_text.startswith('{') and item_text.endswith('}'):
+                        item_text = item_text[1:-1].strip()
                     items.append(item_text)
 
         entries.append({
