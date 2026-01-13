@@ -355,11 +355,16 @@ def list_versions() -> None:
         print(f"  {Colors.BOLD}{version}{Colors.ENDC} {status_colored}{current_marker}")
 
 
-def build_resume(version: Optional[str] = None) -> bool:
+def build_resume(version: Optional[str] = None, combine: bool = False) -> bool:
     """Build resume PDF(s) for a version.
 
     Args:
         version: Version to build. If None, uses current version.
+
+        combine: If True, attempt to combine cover letter and resume into a
+                 single PDF (cover first) using a small LaTeX wrapper and
+                 an available TeX engine. This avoids adding Python-only
+                 dependencies.
 
     Returns:
         True if successful, False otherwise.
@@ -387,6 +392,49 @@ def build_resume(version: Optional[str] = None) -> bool:
 
         if result.returncode == 0:
             print_success(f"Resume and cover letter build complete for version: {version}")
+
+            # If requested, attempt to combine the generated PDFs.
+            if combine:
+                try:
+                    output_dir = Path.cwd() / '_output' / version
+                    # Attempt to locate cover and resume PDFs by common naming
+                    cover_pdf = None
+                    resume_pdf = None
+
+                    # Common produced names by scripts/build.py: "<Full Name> Cover Letter.pdf"
+                    # and "<Full Name> Resume.pdf" - match by suffix
+                    if output_dir.exists():
+                        for p in output_dir.glob('*.pdf'):
+                            name = p.name.lower()
+                            if 'cover' in name and 'letter' in name:
+                                cover_pdf = p
+                            if 'resume' in name:
+                                resume_pdf = p
+
+                    # Fallbacks
+                    if cover_pdf is None:
+                        possible = output_dir / 'cover_letter.pdf'
+                        if possible.exists():
+                            cover_pdf = possible
+                    if resume_pdf is None:
+                        possible = output_dir / 'resume.pdf'
+                        if possible.exists():
+                            resume_pdf = possible
+
+                    if not output_dir.exists() or cover_pdf is None or resume_pdf is None:
+                        print_warning('Could not find both cover letter and resume PDFs to combine. Skipping combine.')
+                    else:
+                        dest_name = f"{version}-combined.pdf"
+                        dest = output_dir / dest_name
+                        combined = combine_pdfs_via_latex(output_dir, cover_pdf, resume_pdf, dest)
+                        if combined:
+                            print_success(f"Combined PDF created: {combined.relative_to(Path.cwd())}")
+                        else:
+                            print_warning('Combine step did not produce a combined PDF')
+
+                except Exception as e:
+                    print_warning(f'Combine failed: {e}')
+
             return True
         else:
             print_error("Build failed")
@@ -426,6 +474,157 @@ def refresh_library() -> bool:
 
     except Exception as e:
         print_error(f"Failed to refresh library: {e}")
+        return False
+
+
+def combine_pdfs_via_latex(output_dir: Path, cover_pdf: Path, resume_pdf: Path, dest: Path) -> Optional[Path]:
+    """Combine two PDFs (cover then resume) by generating a small LaTeX wrapper
+    that uses the `pdfpages` package. This avoids adding Python PDF libraries.
+
+    Returns the destination Path on success, or None on failure.
+    """
+    # Ensure output dir exists
+    output_dir = Path(output_dir)
+    if not output_dir.exists():
+        print_warning(f"Output directory does not exist: {output_dir}")
+        return None
+
+    if not cover_pdf.exists() or not resume_pdf.exists():
+        print_warning("Cover or resume PDF missing for combine")
+        return None
+
+    tex_name = 'combine_cover_resume.tex'
+    tex_path = output_dir / tex_name
+
+    tex_contents = rf"""\documentclass{{article}}
+\usepackage{{pdfpages}}
+\pagestyle{{empty}}
+\begin{{document}}
+\includepdf[pages=-]{{{cover_pdf.name}}}
+\includepdf[pages=-]{{{resume_pdf.name}}}
+\end{{document}}
+"""
+
+    tex_path.write_text(tex_contents, encoding='utf-8')
+
+    # Run tectonic from project root, mirroring scripts/build.py behavior
+    project_root = Path.cwd()
+
+    # Require tectonic specifically for combining to keep behavior consistent
+    if not shutil.which('tectonic'):
+        print_warning('Tectonic not found; combine requires tectonic to be installed.')
+        return None
+
+    try:
+        cmd = [
+            'tectonic',
+            '--keep-logs',
+            '--keep-intermediates',
+            '--outdir', str(output_dir),
+            '-Z', f'search-path={project_root}',
+            '-Z', f'search-path={output_dir}',
+            str(tex_path.resolve())
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(project_root))
+    except subprocess.CalledProcessError as e:
+        print_warning(f"LaTeX combine failed: {e.stderr if hasattr(e, 'stderr') else e}")
+        return None
+
+    built_pdf = output_dir / (tex_path.stem + '.pdf')
+    if built_pdf.exists():
+        # Move to destination atomically when possible
+        tmp = dest.with_suffix(dest.suffix + '.tmp')
+        try:
+            if tmp.exists():
+                tmp.unlink()
+            shutil.move(str(built_pdf), str(tmp))
+            if dest.exists():
+                dest.unlink()
+            tmp.replace(dest)
+        except Exception:
+            # Fallback copy
+            shutil.copy2(str(built_pdf), str(dest))
+
+        # Cleanup intermediate files
+        for ext in ['.aux', '.log', '.out', '.fls', '.toc', '.fdb_latexmk']:
+            p = output_dir / (tex_path.stem + ext)
+            if p.exists():
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
+
+        # Attempt latexmk cleanup if available
+        if shutil.which('latexmk'):
+            try:
+                subprocess.run(['latexmk', '-c', tex_path.name], check=False, capture_output=True, text=True, cwd=str(project_root))
+            except Exception:
+                pass
+
+        try:
+            tex_path.unlink()
+        except Exception:
+            pass
+
+        return dest
+
+    return None
+
+
+def combine_current_version(version: Optional[str] = None) -> bool:
+    """Combine the cover letter and resume PDFs for the given version (or current).
+
+    Uses `combine_pdfs_via_latex` (tectonic-only) and reports success/failure.
+    """
+    if version is None:
+        version = get_current_version()
+
+    print_header(f"Combine Cover Letter + Resume: {version}")
+
+    output_dir = Path.cwd() / '_output' / version
+    if not output_dir.exists():
+        print_error(f"Output directory not found for version: {version}")
+        return False
+
+    cover_pdf = None
+    resume_pdf = None
+    for p in output_dir.glob('*.pdf'):
+        name = p.name.lower()
+        if 'cover' in name and 'letter' in name:
+            cover_pdf = p
+        if 'resume' in name:
+            resume_pdf = p
+
+    # Fallback names
+    if cover_pdf is None:
+        possible = output_dir / 'cover_letter.pdf'
+        if possible.exists():
+            cover_pdf = possible
+    if resume_pdf is None:
+        possible = output_dir / 'resume.pdf'
+        if possible.exists():
+            resume_pdf = possible
+
+    if cover_pdf is None or resume_pdf is None:
+        print_error('Could not locate both cover letter and resume PDFs to combine.')
+        return False
+
+    # Attempt to derive full name from personal details for consistent naming
+    try:
+        from cv_utils import extract_name_from_personal_details, ProjectPaths
+        paths = ProjectPaths()
+        full_name = extract_name_from_personal_details(paths.personal_details_file)
+    except Exception:
+        full_name = version
+
+    dest_name = f"{full_name} Cover Letter + Resume.pdf"
+    dest = output_dir / dest_name
+    res = combine_pdfs_via_latex(output_dir, cover_pdf, resume_pdf, dest)
+    if res:
+        print_success(f"Combined PDF created: {res.relative_to(Path.cwd())}")
+        return True
+    else:
+        print_error('Failed to create combined PDF')
         return False
 
 
@@ -955,14 +1154,15 @@ def interactive_menu() -> None:
 
         print(f"\n{Colors.GREEN}┌─ Build & Validate{Colors.ENDC}")
         print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}6{Colors.ENDC} › Build resume/cover letter")
-        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}7{Colors.ENDC} › Validate current version")
-        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}8{Colors.ENDC} › Export to markdown")
-        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}9{Colors.ENDC} › Clean build artifacts")
+        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}7{Colors.ENDC} › Combine cover letter + resume (tectonic)")
+        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}8{Colors.ENDC} › Validate current version")
+        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}9{Colors.ENDC} › Export to markdown")
+        print(f"{Colors.GREEN}│{Colors.ENDC}  {Colors.BOLD}10{Colors.ENDC} › Clean build artifacts")
 
         print(f"\n{Colors.YELLOW}┌─ Tools{Colors.ENDC}")
-        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}10{Colors.ENDC} › Refresh CV library (JSON)")
-        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}11{Colors.ENDC} › Refresh VS Code tasks")
-        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}12{Colors.ENDC} › Show status")
+        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}11{Colors.ENDC} › Refresh CV library (JSON)")
+        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}12{Colors.ENDC} › Refresh VS Code tasks")
+        print(f"{Colors.YELLOW}│{Colors.ENDC} {Colors.BOLD}13{Colors.ENDC} › Show status")
 
         print(f"\n  {Colors.DIM}{Colors.BOLD}0{Colors.ENDC}{Colors.DIM} › Exit{Colors.ENDC}")
 
@@ -1027,16 +1227,18 @@ def interactive_menu() -> None:
         elif choice == '6':
             build_resume()
         elif choice == '7':
-            validate_version()
+            combine_current_version()
         elif choice == '8':
-            export_to_markdown()
+            validate_version()
         elif choice == '9':
-            clean_build_artifacts()
+            export_to_markdown()
         elif choice == '10':
-            refresh_library()
+            clean_build_artifacts()
         elif choice == '11':
-            refresh_vscode_tasks()
+            refresh_library()
         elif choice == '12':
+            refresh_vscode_tasks()
+        elif choice == '13':
             show_status()
         else:
             print_error("Invalid option")
@@ -1092,6 +1294,7 @@ For more information, see scripts/README.md
         action='store_true',
         help='Build resume for current version'
     )
+
 
     parser.add_argument(
         '--list',
