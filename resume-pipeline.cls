@@ -119,10 +119,10 @@
 % Note: Removed patch that changed \ifstrempty to \ifempty
 % The original \ifstrempty works correctly and handles whitespace properly
 
-% Patch cvskills: Change table width calculation
+% Patch cvskills: Change table column definitions for tighter layout
 \xpatchcmd{\cvskills}
-	{L{\textwidth * \real{0.9}}}
-	{L{\textwidth - 5cm}}
+	{r L{\textwidth * \real{0.9}}}
+	{R{3.5cm} L{\textwidth - 4.0cm}}
 	{}{\ClassWarning{resume-pipeline}{Failed to patch cvskills width}}
 
 % Patch cvitems: Adjust parskip from 0pt to 4pt
