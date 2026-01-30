@@ -30,6 +30,7 @@ import subprocess
 import json
 import re
 import os
+import datetime
 
 # Add scripts directory to path
 SCRIPTS_DIR = Path(__file__).parent / 'scripts'
@@ -207,16 +208,24 @@ def create_new_version(version_name: Optional[str] = None) -> bool:
         print_error("Version name must contain only letters, numbers, underscores, and hyphens")
         return False
 
-    new_version_dir = content_dir / version_name
+    # Prepend today's date to the folder name unless already present
+    date_prefix_pattern = r'^\d{4}-\d{2}-\d{2}_'
+    if re.match(date_prefix_pattern, version_name):
+        final_name = version_name
+    else:
+        today = datetime.date.today().isoformat()
+        final_name = f"{today}_{version_name}"
+
+    new_version_dir = content_dir / final_name
 
     # Check if version already exists
     if new_version_dir.exists():
-        print_error(f"Version '{version_name}' already exists!")
+        print_error(f"Version '{final_name}' already exists!")
         return False
 
     # Show preview
     print(f"\n{Colors.BOLD}Preview:{Colors.ENDC}")
-    print(f"  Name: {Colors.CYAN}{version_name}{Colors.ENDC}")
+    print(f"  Name: {Colors.CYAN}{final_name}{Colors.ENDC}")
     print(f"  Path: {Colors.CYAN}{new_version_dir.relative_to(base_path)}{Colors.ENDC}")
     print(f"\n{Colors.BOLD}Files to be created:{Colors.ENDC}")
 
@@ -240,17 +249,17 @@ def create_new_version(version_name: Optional[str] = None) -> bool:
                 shutil.copy2(item, new_version_dir / item.name)
             elif item.is_dir():
                 shutil.copytree(item, new_version_dir / item.name)
-        print_success(f"Created new version: {version_name}")
+        print_success(f"Created new version: {final_name}")
 
         # Ask if user wants to switch to it
         switch = input(f"\n{Colors.BOLD}Switch to this version now? (Y/n): {Colors.ENDC}").strip().lower()
         if switch != 'n':
-            update_version(version_name)
-            print_success(f"Switched to version: {version_name}")
+            update_version(final_name)
+            print_success(f"Switched to version: {final_name}")
 
         # Suggest next steps
         print(f"\n{Colors.BOLD}Next steps:{Colors.ENDC}")
-        print(f"  1. Edit files in {Colors.CYAN}_content/{version_name}/{Colors.ENDC}")
+        print(f"  1. Edit files in {Colors.CYAN}_content/{final_name}/{Colors.ENDC}")
         print("  2. Customize the content for your specific use case")
         print(f"  3. Run {Colors.CYAN}python pipeline.py --build{Colors.ENDC} to generate PDF")
 
