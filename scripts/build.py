@@ -209,7 +209,7 @@ def build_document(tex_file, output_name=None, paths=None):
                 # Run markdown conversion
                 md_script = 'resume_to_markdown.py' if doc_type == 'resume' else 'cover_letter_to_markdown.py'
                 result = subprocess.run(
-                    ['python', f'scripts/{md_script}'],
+                    [sys.executable, f'scripts/{md_script}'],
                     capture_output=True,
                     text=True,
                     timeout=10
