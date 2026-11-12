@@ -9,7 +9,7 @@ This agent assists users in crafting tailored resumes and cover letters for spec
 - **Content Mining:** Search and extract relevant content from JSON files in the `cv_library` directory. See `cv_library/README.md` for complete schema and available sections.
 - **Collaboration:** Work interactively with the user, allowing back-and-forth discussion to customize and refine content.
 - **Job Directory Setup:**
-  - Check if `cv/[job_name]/` exists. If yes, work with existing files. If no, suggest creating from `cv/_template/`.
+  - Check if `_content/[job_name]/` exists. If yes, work with existing files. If no, suggest creating from `_content/_template/`.
 - **Customization:** Adapt and mine content to match the job description, updating the relevant `.tex` files in the job directory with customized, user-approved language.
 - **Section Ordering:** Recommend section order changes via the `\loadSections` command in `cv-resume.tex` (e.g., `\loadSections{summary, skills, experience}`). Available sections: experience, skills, education, certificates, honors, committees, writing, presentations, extracurricular.
 - **Iterative Refinement:** Work through each section one at a time, allowing user review and adjustment before moving to the next.
@@ -32,8 +32,8 @@ The `cv_library` directory contains JSON files for different resume sections:
 
 ## Usage Instructions
 
-1. **Input:** Job description provided as markdown file in `cv/[job_name]/` or pasted directly by user.
-2. **Setup Check:** Verify if job directory exists. If not, create from `cv/_template/`.
+1. **Input:** Job description provided as markdown file in `_content/[job_name]/` or pasted directly by user.
+2. **Setup Check:** Verify if job directory exists. If not, create from `_content/_template/`.
 3. **Mine cv_library:** Read relevant JSON files to understand available content. Check `cv_library/README.md` for schema.
 4. **Draft & Propose:** Mine relevant content and draft customizations section-by-section with reasoning.
 5. **User Reviews:** User reviews, discusses, and approves/requests changes.
@@ -54,13 +54,14 @@ The `cv_library` directory contains JSON files for different resume sections:
 
 - **Do not fabricate or exaggerate.** Only use information from `cv_library`, user-provided materials, or explicitly approved by user.
 - **Avoid excessive editorializing.** Light editing acceptable, but don't invent roles, projects, or skills.
-- **Watch for LLM signifiers:** Avoid overuse of groups of three, em dashes, and patterns that sound artificial.
+- **Watch for LLM signifiers:** No em dashes or en dashes in application content, no default rule of three, no "serves as / stands as," no trailing participials ("..., improving X" tacked on at the end), no "not only X but also Y." Avoid inflated vocabulary such as "additionally," "crucial," "delve," "enhance," "foster," "highlight," "key," "landscape," "pivotal," "showcase," "testament," "underscore," "vibrant," "spearheaded," "orchestrated." Reference: [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing).
+- **Voice:** Write plainly and specifically. Lead with the concrete action, not a framing clause. Use accurate verbs ("built," "replaced," "maintained"), not impressive-sounding ones. Use real numbers and proper names instead of "many" or "various." Cut adjectives you cannot back with evidence.
 - **Be transparent:** Ask for clarification rather than making assumptions.
 - **Verify content exists:** Check files contain data (not just `[]`) before mining.
 
 ## Additional Content Mining
 
-- Mine cover letter content from other applications in `cv/` directory for new drafts.
+- Mine cover letter content from other applications in `_content/` directory for new drafts.
 - **Voice Matching (Optional):** Only when user explicitly requests (e.g., "use my writing samples in `/WritingSamples/`"):
   - Read multiple samples to identify patterns, tone, and vocabulary
   - Balance personal voice with professional standards
@@ -72,7 +73,7 @@ The `cv_library` directory contains JSON files for different resume sections:
 
 **Agent:**
 
-- Checks if `cv/company_x_senior_data_engineer/` exists (creates from template if needed)
+- Checks if `_content/company_x_senior_data_engineer/` exists (creates from template if needed)
 - Reads `cv_library/README.md` and relevant JSON files
 - Mines experience, skills, education matching job requirements
 - Drafts tagline, summary, skills, and experience content with reasoning
@@ -100,7 +101,7 @@ The `cv_library` directory contains JSON files for different resume sections:
 project_root/
 ├── cv-resume.tex              # Main resume with \loadSections
 ├── cv-version.tex             # Version/job selector
-├── cv/
+├── _content/
 │   ├── _template/             # Template for new applications
 │   └── [job_name]/            # Job-specific customizations
 │       ├── job_posting.md
@@ -116,8 +117,8 @@ project_root/
 
 - Content source: `cv_library/` directory
 - Schema: `cv_library/README.md`
-- Templates: `cv/_template/`
-- Examples: Other `cv/` directories
+- Templates: `_content/_template/`
+- Examples: Other `_content/` directories
 - Section ordering: `\loadSections` in `cv-resume.tex`
 
 ---

@@ -13,6 +13,7 @@ from typing import Dict, List, Any
 sys.path.insert(0, str(Path(__file__).parent))
 
 from cv_utils import (  # noqa: E402
+    extract_name_from_personal_details,
     clean_latex_text,
     read_text_file,
     write_text_file,
@@ -476,8 +477,9 @@ def main() -> None:
     output_dir = paths.output_version_dir(version)
     ensure_dir_exists(output_dir)
 
-    # Write to file
-    output_path = output_dir / f"Taylor Dickson Resume - {version}.md"
+    # Write to file, named after the name in cv-personal-details.tex
+    full_name = extract_name_from_personal_details(paths.personal_details_file)
+    output_path = output_dir / f"{full_name} Resume - {version}.md"
     write_text_file(output_path, markdown)
 
     print(f"✓ Markdown resume generated: {output_path}")

@@ -1,100 +1,70 @@
-# Taylor Dickson Resume Pipeline - Quick Setup Guide
+# Resume Pipeline: Quick Setup
 
-This guide helps you set up the resume pipeline on a new computer (e.g., your work computer).
+Set up the pipeline on a new computer.
 
 ## 1. Clone the Repository
 
 ```sh
-git clone https://github.com/TWDickson/Taylor-Dickson-Resume.git
-cd Taylor-Dickson-Resume
+git clone --recurse-submodules https://github.com/TWDickson/AwesomeCVResumePipeline.git
+cd AwesomeCVResumePipeline
 ```
 
-## 2. Install Python
-- Install Python 3.8 or newer (recommend using [python.org](https://www.python.org/downloads/) or [pyenv](https://github.com/pyenv/pyenv)).
+If you already cloned without submodules: `git submodule update --init`.
 
-## 3. Set Up a Virtual Environment
+## 2. Install Python
+
+Python 3.7 or newer. Get it from [python.org](https://www.python.org/downloads/) or use [pyenv](https://github.com/pyenv/pyenv).
+
+## 3. Create a Virtual Environment (optional)
+
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-## 4. Install Python Dependencies
+The scripts use only the standard library, so there is nothing to `pip install`. `requirements.txt` is documentation only.
+
+## 4. Install Tectonic
+
+[Tectonic](https://tectonic-typesetting.github.io/en-US/) is a self-contained LaTeX engine that downloads packages as needed.
+
 ```sh
-pip install -r requirements.txt
+brew install tectonic    # macOS
 ```
 
-## 5. Install LaTeX (Tectonic recommended)
-- [Tectonic](https://tectonic-typesetting.github.io/en-US/) is a modern LaTeX engine.
-- Install via Homebrew (macOS):
-  ```sh
-  brew install tectonic
-  ```
-- Or see [Tectonic install docs](https://tectonic-typesetting.github.io/en-US/install.html) for other platforms.
+For other platforms, see the [install docs](https://tectonic-typesetting.github.io/en-US/install.html).
 
-## 6. Build Your Resume
+## 5. Add Your Details and Content
+
+1. Edit `cv-personal-details.tex`.
+2. Run `python pipeline.py --new-version` (or copy `_content/_template/` to `_content/default/`) and fill in the files.
+3. Adjust `\loadSections{...}` in `cv-resume.tex` to match the sections you have.
+
+## 6. Build
+
 ```sh
 python pipeline.py --build
 ```
 
-## 7. (Optional) Use Interactive CLI
+The PDF is written to `_output/<version>/`.
+
+## 7. Optional
+
+- Interactive menu: `python pipeline.py`
+- VS Code tasks: open the folder in VS Code (`python pipeline.py --refresh-tasks` regenerates the version list).
+- Run the tests: `python -m pytest`
+
+## Keeping Your Applications Private
+
+This repository git-ignores `_content/` (except `_template/`) and `_output/`. To track your own applications, keep a private copy of the repo and edit `.gitignore` there. A common setup is a private repo as `origin` and this public repo as a second remote:
+
 ```sh
-python pipeline.py
+git remote add public https://github.com/TWDickson/AwesomeCVResumePipeline.git
+git fetch public
 ```
 
-## 8. (Optional) VS Code Tasks
-- Open the folder in VS Code for integrated build tasks.
+Pipeline changes can then be cherry-picked between the two. Review changed files for personal details before pushing anything to a public remote.
 
 ---
 
-For more details, see `scripts/README.md` or ask for help!
----
-
-## 9. Public/Private Git Remote Setup
-
-If you want to push to both a public and a private repository (e.g., GitHub and a work Git server):
-
-1. **Clone your preferred remote (e.g., private):**
-  ```sh
-  git clone git@github.com:YourOrg/Taylor-Dickson-Resume.git
-  cd Taylor-Dickson-Resume
-  ```
-
-2. **Add the other remote (e.g., public):**
-  ```sh
-  git remote add public git@github.com:TWDickson/Taylor-Dickson-Resume.git
-  ```
-
-3. **Check your remotes:**
-  ```sh
-  git remote -v
-  ```
-
-4. **Push to a specific remote:**
-  ```sh
-  git push public main
-  git push origin main
-  ```
-
-5. **(Optional) Set up SSH keys for both accounts:**
-  - Generate a new SSH key for work if needed.
-  - Add the public key to your GitHub/work account.
-  - Use an SSH config file (`~/.ssh/config`) to manage multiple keys:
-
-    ```
-    Host github.com-public
-      HostName github.com
-      User git
-      IdentityFile ~/.ssh/id_rsa_public
-
-    Host github.com-work
-      HostName github.com
-      User git
-      IdentityFile ~/.ssh/id_rsa_work
-    ```
-
-  - Then use the correct host in your remote URL, e.g.:
-
-    ```
-    git remote set-url origin git@github.com-work:YourOrg/Taylor-Dickson-Resume.git
-    git remote set-url public git@github.com-public:TWDickson/Taylor-Dickson-Resume.git
-    ```
+See `README.md` for an overview and `scripts/README.md` for script details.

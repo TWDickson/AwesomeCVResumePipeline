@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 LaTeX Cover Letter to Markdown Converter
-Converts Your Name's LaTeX cover letter to clean Markdown format.
+Converts a LaTeX cover letter to clean Markdown format.
 """
 
 import re
@@ -13,6 +13,7 @@ from typing import Dict
 sys.path.insert(0, str(Path(__file__).parent))
 
 from cv_utils import (  # noqa: E402
+    extract_name_from_personal_details,
     clean_latex_text,
     read_text_file,
     write_text_file,
@@ -203,7 +204,8 @@ def main() -> None:
     output_dir = paths.output_dir / version
     ensure_dir_exists(output_dir)
 
-    output_path = output_dir / f"Your Name Cover Letter - {version}.md"
+    full_name = extract_name_from_personal_details(paths.personal_details_file)
+    output_path = output_dir / f"{full_name} Cover Letter - {version}.md"
     write_text_file(output_path, markdown)
 
     print(f"✓ Markdown cover letter generated: {output_path}")

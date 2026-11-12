@@ -7,7 +7,7 @@
 % Based on: Awesome-CV by Claud D. Park
 % https://github.com/posquit0/Awesome-CV
 %
-% Author: Your Name
+% Author: TWDickson
 % Created: 2025/10/21
 %
 % Class license:
@@ -247,7 +247,7 @@
 % 	\newif\ifwindows%
 % 	\IfFileExists{C:/Windows/System32/cmd.exe}{\windowstrue}{\windowsfalse}%
 % 	\ifwindows%
-% 		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination '_output\string\\\string\OutputVersion\string\\Taylor\space Dickson\space Resume.pdf' -Force"}%
+% 		\ShellEscape{powershell -Command "Start-Sleep -Milliseconds 100; Copy-Item -Path '\string\jobname.pdf' -Destination '_output\string\\\string\OutputVersion\string\\Your\space Name\space Resume.pdf' -Force"}%
 % 	\else%
 % 		\ShellEscape{mkdir -p "\detokenize{#2}" && sleep 0.1 && FILE=\string$(echo \detokenize{#1} | sed 's/"\string\string//g').pdf && cp "\string$FILE" "\detokenize{#2}/\string$FILE"}%
 % 	\fi%
